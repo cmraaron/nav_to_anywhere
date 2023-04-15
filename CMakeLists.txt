@@ -7,9 +7,7 @@ endif()
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
-# uncomment the following section in order to fill in
-# further dependencies manually.
-# find_package(<dependency> REQUIRED)
+find_package(rclcpp REQUIRED)
 
 add_executable(nav_to_anywhere src/nav_to_anywhere.cpp)
 target_include_directories(nav_to_anywhere PUBLIC
@@ -32,6 +30,7 @@ if(BUILD_TESTING)
   set(ament_cmake_cpplint_FOUND TRUE)
   ament_lint_auto_find_test_dependencies()
   ament_add_gtest(${PROJECT_NAME}-test test/test.cpp)
+  ament_target_dependencies(${PROJECT_NAME}-test rclcpp)
 endif()
 
 ament_package()
