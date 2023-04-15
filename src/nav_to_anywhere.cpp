@@ -1,6 +1,7 @@
 // Copyright (c) 2023 Aaron Lipinski
 
 #include <memory>
+#include <utility>
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_action/rclcpp_action.hpp"
 #include "nav2_msgs/action/navigate_to_pose.hpp"
@@ -17,6 +18,7 @@ int main(int argc, char * argv[])
 
   geometry_msgs::msg::Pose2D pos_active;
   std::shared_ptr<GoalHandleNavigateToPose> current_goal_handle;
+  auto nav_start_time = node->get_clock()->now();
 
   const auto interval = 0.2;  // seconds
   const auto velocity = 1;    // m/s
@@ -44,6 +46,12 @@ int main(int argc, char * argv[])
           pos_active.y += idy;
           pos_active.theta = theta;
         }
+
+        auto feedback = std::make_unique<NavigateToPose::Feedback>();
+        feedback->number_of_recoveries = 0;
+        feedback->current_pose.pose = nav_2d_utils::pose2DToPose(pos_active);
+        feedback->navigation_time = node->get_clock()->now() - nav_start_time;
+        current_goal_handle->publish_feedback(std::move(feedback));
       }
     });
 
@@ -71,6 +79,7 @@ int main(int argc, char * argv[])
     },
 
     [&](const std::shared_ptr<GoalHandleNavigateToPose> goal_handle) {
+      nav_start_time = node->get_clock()->now();
       current_goal_handle = goal_handle;
     }
   );
