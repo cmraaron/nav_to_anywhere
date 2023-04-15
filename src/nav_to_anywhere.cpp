@@ -41,6 +41,10 @@ int main(int argc, char * argv[])
           pos_active.x = pos_target.x;
           pos_active.y = pos_target.y;
           pos_active.theta = pos_target.theta;
+
+          current_goal_handle->succeed(std::make_unique<NavigateToPose::Result>());
+          current_goal_handle.reset();
+          return;
         } else {
           pos_active.x += idx;
           pos_active.y += idy;
