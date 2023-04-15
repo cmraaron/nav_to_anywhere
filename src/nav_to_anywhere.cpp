@@ -102,11 +102,6 @@ int main(int argc, char * argv[])
           "\n  pose: {x: " << pose2d.x << ", y: " << pose2d.y << ", theta: " << pose2d.theta << "}"
       );
       (void)uuid;
-      if (current_goal_handle) {
-        auto result = std::make_shared<NavigateToPose::Result>();
-        current_goal_handle->abort(result);
-        current_goal_handle.reset();
-      }
       return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
     },
 
@@ -117,7 +112,12 @@ int main(int argc, char * argv[])
     },
 
     [&](const std::shared_ptr<GoalHandleNavigateToPose> goal_handle) {
-      nav_start_time = node->get_clock()->now();
+      if (current_goal_handle) {
+        auto result = std::make_shared<NavigateToPose::Result>();
+        current_goal_handle->abort(result);
+      } else {
+        nav_start_time = node->get_clock()->now();
+      }
       current_goal_handle = goal_handle;
     }
   );
