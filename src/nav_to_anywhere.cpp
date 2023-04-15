@@ -40,6 +40,7 @@ int main(int argc, char * argv[])
       transform.header.stamp = node->get_clock()->now();
       tf_broadcaster->sendTransform(transform);
 
+      /* if we have an active mission */
       if (current_goal_handle) {
         const auto pos_target = nav_2d_utils::poseToPose2D(
           current_goal_handle->get_goal()->pose.pose);
@@ -52,6 +53,7 @@ int main(int argc, char * argv[])
         const auto idx = vx * interval;
         const auto idy = vy * interval;
 
+        /* if we are within one step of our goal */
         if (dy * dy + dx * dx < idy * idy + idx * idx) {
           pos_active.x = pos_target.x;
           pos_active.y = pos_target.y;
@@ -60,6 +62,7 @@ int main(int argc, char * argv[])
           auto result = std::make_shared<NavigateToPose::Result>();
           current_goal_handle->succeed(result);
           current_goal_handle.reset();
+          // might be nice to give one last feedback with up to date position?
           return;
         } else {
           pos_active.x += idx;

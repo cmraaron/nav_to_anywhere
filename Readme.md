@@ -36,3 +36,8 @@ estimated_time_remaining:
 number_of_recoveries: 0
 distance_remaining: 0.0
 ```
+
+Command line to send goal
+```
+ros2 action send_goal /navigate_to_pose nav2_msgs/action/NavigateToPose "{pose: {pose: {position: {x: -2, y: -2}}}}" --feedback
+```
