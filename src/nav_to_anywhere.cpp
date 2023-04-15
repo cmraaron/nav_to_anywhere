@@ -6,12 +6,16 @@
 #include "rclcpp_action/rclcpp_action.hpp"
 #include "nav2_msgs/action/navigate_to_pose.hpp"
 #include "nav_2d_utils/conversions.hpp"
+#include "geometry_msgs/msg/polygon_stamped.hpp"
 
 int main(int argc, char * argv[])
 {
   rclcpp::init(argc, argv);
 
   const auto node = std::make_shared<rclcpp::Node>("nav_to_anywhere");
+
+  const auto local_footprint_pub = node->create_publisher<geometry_msgs::msg::PolygonStamped>(
+    "local_costmap/published_footprint", rclcpp::SystemDefaultsQoS());
 
   using NavigateToPose = nav2_msgs::action::NavigateToPose;
   using GoalHandleNavigateToPose = rclcpp_action::ServerGoalHandle<NavigateToPose>;
