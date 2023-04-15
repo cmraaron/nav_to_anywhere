@@ -16,19 +16,35 @@ int main(int argc, char * argv[])
   using GoalHandleNavigateToPose = rclcpp_action::ServerGoalHandle<NavigateToPose>;
 
   geometry_msgs::msg::Pose2D pos_active;
-  geometry_msgs::msg::Pose2D pos_target;
+  std::shared_ptr<GoalHandleNavigateToPose> current_goal_handle;
 
   const auto interval = 0.2;  // seconds
   const auto velocity = 1;    // m/s
 
   const auto tick = node->create_wall_timer(
     std::chrono::milliseconds(static_cast<int>(interval * 1000)), [&]() {
-      const auto theta = std::atan2(pos_target.y - pos_active.y, pos_target.x - pos_active.x);
-      const auto vx = std::cos(theta) * velocity;
-      const auto vy = std::sin(theta) * velocity;
-      pos_active.x = vx * interval;
-      pos_active.y = vy * interval;
-      pos_active.theta = theta;
+      if (current_goal_handle) {
+        const auto pos_target = nav_2d_utils::poseToPose2D(
+          current_goal_handle->get_goal()->pose.pose);
+        const auto dy = pos_target.y - pos_active.y;
+        const auto dx = pos_target.x - pos_active.x;
+        const auto theta = std::atan2(dy, dx);
+
+        const auto vx = std::cos(theta) * velocity;
+        const auto vy = std::sin(theta) * velocity;
+        const auto idx = vx * interval;
+        const auto idy = vy * interval;
+
+        if (dy * dy + dx * dx < idy * idy + idx * idx) {
+          pos_active.x = pos_target.x;
+          pos_active.y = pos_target.y;
+          pos_active.theta = pos_target.theta;
+        } else {
+          pos_active.x += idx;
+          pos_active.y += idy;
+          pos_active.theta = theta;
+        }
+      }
     });
 
   const auto nav_to_pose_action_service = rclcpp_action::create_server<NavigateToPose>(
@@ -55,7 +71,7 @@ int main(int argc, char * argv[])
     },
 
     [&](const std::shared_ptr<GoalHandleNavigateToPose> goal_handle) {
-      pos_target = nav_2d_utils::poseToPose2D(goal_handle->get_goal()->pose.pose);
+      current_goal_handle = goal_handle;
     }
   );
 
