@@ -73,18 +73,18 @@ int main(int argc, char * argv[])
 
       /* if we have an active mission */
       if (current_goal_handle) {
-        if (update_current_pos()) {
-          current_goal_handle->succeed(std::make_unique<NavigateToPose::Result>());
-          current_goal_handle.reset();
-          // might be nice to give one last feedback with up to date position?
-          return;
-        }
+        const auto goal_reached = update_current_pos();
 
         auto feedback = std::make_unique<NavigateToPose::Feedback>();
         feedback->number_of_recoveries = 0;
         feedback->current_pose.pose = nav_2d_utils::pose2DToPose(pos_active);
         feedback->navigation_time = node->get_clock()->now() - nav_start_time;
         current_goal_handle->publish_feedback(std::move(feedback));
+
+        if (goal_reached) {
+          current_goal_handle->succeed(std::make_unique<NavigateToPose::Result>());
+          current_goal_handle.reset();
+        }
       }
     });
 
