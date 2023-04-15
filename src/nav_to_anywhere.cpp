@@ -7,6 +7,7 @@
 #include "nav2_msgs/action/navigate_to_pose.hpp"
 #include "nav_2d_utils/conversions.hpp"
 #include "geometry_msgs/msg/polygon_stamped.hpp"
+#include "tf2_ros/transform_broadcaster.h"
 
 int main(int argc, char * argv[])
 {
@@ -14,6 +15,7 @@ int main(int argc, char * argv[])
 
   const auto node = std::make_shared<rclcpp::Node>("nav_to_anywhere");
 
+  tf2_ros::TransformBroadcaster tf_broadcaster(*node);
   const auto local_footprint_pub = node->create_publisher<geometry_msgs::msg::PolygonStamped>(
     "local_costmap/published_footprint", rclcpp::SystemDefaultsQoS());
 
@@ -29,6 +31,16 @@ int main(int argc, char * argv[])
 
   const auto tick = node->create_wall_timer(
     std::chrono::milliseconds(static_cast<int>(interval * 1000)), [&]() {
+      /* broadcast map -> base_footprint tf */
+      geometry_msgs::msg::TransformStamped transform;
+      transform.header.frame_id = "map";
+      transform.child_frame_id = "base_footprint";
+      transform.transform.translation.x = pos_active.x;
+      transform.transform.translation.y = pos_active.y;
+      transform.transform.rotation = nav_2d_utils::pose2DToPose(pos_active).orientation;
+      transform.header.stamp = node->get_clock()->now();
+      tf_broadcaster.sendTransform(transform);
+
       if (current_goal_handle) {
         const auto pos_target = nav_2d_utils::poseToPose2D(
           current_goal_handle->get_goal()->pose.pose);
