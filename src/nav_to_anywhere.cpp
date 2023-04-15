@@ -18,6 +18,19 @@ int main(int argc, char * argv[])
   geometry_msgs::msg::Pose2D pos_active;
   geometry_msgs::msg::Pose2D pos_target;
 
+  const auto interval = 0.2;  // seconds
+  const auto velocity = 1;    // m/s
+
+  const auto tick = node->create_wall_timer(
+    std::chrono::milliseconds(static_cast<int>(interval * 1000)), [&]() {
+      const auto theta = std::atan2(pos_target.y - pos_active.y, pos_target.x - pos_active.x);
+      const auto vx = std::cos(theta) * velocity;
+      const auto vy = std::sin(theta) * velocity;
+      pos_active.x = vx * interval;
+      pos_active.y = vy * interval;
+      pos_active.theta = theta;
+    });
+
   const auto nav_to_pose_action_service = rclcpp_action::create_server<NavigateToPose>(
     node,
     "navigate_to_pose",
