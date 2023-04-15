@@ -1,6 +1,7 @@
 // Copyright (c) 2023 Aaron Lipinski
 
 #include <memory>
+#include <string>
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_action/rclcpp_action.hpp"
 #include "nav2_msgs/action/navigate_to_pose.hpp"
@@ -41,6 +42,13 @@ int main(int argc, char * argv[])
     };
 
   auto update_current_pos = [&]() {
+      if (current_goal_handle->get_goal()->behavior_tree.find("dock.") != std::string::npos) {
+        const auto elapsed_time = node->get_clock()->now() - nav_start_time;
+        return elapsed_time.seconds() > 4;
+      }
+      if (current_goal_handle->get_goal()->behavior_tree.find("-reset.") != std::string::npos) {
+        return true;
+      }
       const auto pos_target = nav_2d_utils::poseToPose2D(
         current_goal_handle->get_goal()->pose.pose);
       const auto dy = pos_target.y - pos_active.y;
