@@ -120,6 +120,11 @@ int main(int argc, char * argv[])
         }
       }
       broadcast_tf();
+      geometry_msgs::msg::PolygonStamped oriented_footprint;
+      nav2_costmap_2d::transformFootprint(
+        pos_active.x, pos_active.y, pos_active.theta, footprint,
+        oriented_footprint);
+      local_footprint_pub->publish(oriented_footprint);
     });
 
   const auto nav_to_pose_action_service = rclcpp_action::create_server<NavigateToPose>(
