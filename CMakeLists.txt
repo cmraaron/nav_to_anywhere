@@ -12,9 +12,10 @@ find_package(rclcpp_action REQUIRED)
 find_package(nav2_msgs REQUIRED)
 find_package(nav_2d_utils REQUIRED)
 find_package(tf2_ros REQUIRED)
+find_package(nav2_costmap_2d REQUIRED)
 
 add_executable(nav_to_anywhere src/nav_to_anywhere.cpp)
-ament_target_dependencies(nav_to_anywhere rclcpp rclcpp_action nav2_msgs nav_2d_utils tf2_ros)
+ament_target_dependencies(nav_to_anywhere rclcpp rclcpp_action nav2_msgs nav_2d_utils tf2_ros nav2_costmap_2d)
 
 target_include_directories(nav_to_anywhere PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
