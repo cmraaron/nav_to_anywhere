@@ -31,7 +31,6 @@ jobs:
       - uses : ros-tooling/action-ros-ci@v0.3
         with:
           package-name: nav_to_anywhere
-          vcs-repo-file-url: dependencies.repos
           target-ros2-distro: ${{ matrix.ros_distribution }}
           colcon-defaults: |
             {
