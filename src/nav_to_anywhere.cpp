@@ -77,8 +77,6 @@ int main(int argc, char * argv[])
 
   const auto tick = node->create_wall_timer(
     std::chrono::milliseconds(static_cast<int>(interval * 1000)), [&]() {
-      broadcast_tf();
-
       /* if we have an active mission */
       if (current_goal_handle) {
         const auto goal_reached = update_current_pos();
@@ -94,6 +92,7 @@ int main(int argc, char * argv[])
           current_goal_handle.reset();
         }
       }
+      broadcast_tf();
     });
 
   const auto nav_to_pose_action_service = rclcpp_action::create_server<NavigateToPose>(
