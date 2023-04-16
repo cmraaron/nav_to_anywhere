@@ -64,9 +64,17 @@ int main(int argc, char * argv[])
   const auto update_current_pos = [&]() {
       if (current_goal_handle->get_goal()->behavior_tree.find("dock.") != std::string::npos) {
         const auto elapsed_time = node->get_clock()->now() - nav_start_time;
-        return elapsed_time.seconds() > 4;
+        if (elapsed_time.seconds() > 4) {
+          footprint =
+            current_goal_handle->get_goal()->behavior_tree.find("undock.") != std::string::npos ?
+            footprint_unloaded :
+            footprint_loaded;
+          return true;
+        }
+        return false;
       }
       if (current_goal_handle->get_goal()->behavior_tree.find("-reset.") != std::string::npos) {
+        footprint = footprint_unloaded;
         return true;
       }
       const auto pos_target = nav_2d_utils::poseToPose2D(
