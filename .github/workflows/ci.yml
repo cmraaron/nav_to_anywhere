@@ -5,16 +5,41 @@ on:
     branches: [ "master" ]
   pull_request:
     branches: [ "master" ]
+  schedule:
+    # Run once per day to detect broken dependencies.
+    - cron: '33 6 * * *'
 
 jobs:
   build-test:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - ros_distribution: "foxy"
+            os: "ubuntu-20.04"
+          - ros_distribution: "humble"
+            os: "ubuntu-22.04"
+          - ros_distribution: "rolling"
+            os: "ubuntu-22.04"
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout this repository
         uses: actions/checkout@v3
+      - uses: ros-tooling/setup-ros@v0.3
         with:
-          path: repository
-      - name: Build and test workspace
-        uses: ichiro-its/ros2-build-and-test-action@main
+          required-ros-distributions: ${{ matrix.ros_distribution }}
+      - uses : ros-tooling/action-ros-ci@v0.3
         with:
-          ros2-distro: humble
+          package-name: nav_to_anywhere
+          vcs-repo-file-url: dependencies.repos
+          target-ros2-distro: ${{ matrix.ros_distribution }}
+          colcon-defaults: |
+            {
+              "build": {
+                "mixin": ["coverage-gcc"]
+              }
+            }
+          colcon-mixin-repository: https://raw.githubusercontent.com/colcon/colcon-mixin-repository/master/index.yaml
+      - uses: codecov/codecov-action@v3
+        with:
+          file: ros_ws/lcov/total_coverage.info
