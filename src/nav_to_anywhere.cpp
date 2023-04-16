@@ -3,22 +3,41 @@
 #include <memory>
 #include <utility>
 #include <string>
+#include <vector>
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_action/rclcpp_action.hpp"
 #include "nav2_msgs/action/navigate_to_pose.hpp"
 #include "nav_2d_utils/conversions.hpp"
 #include "geometry_msgs/msg/polygon_stamped.hpp"
 #include "tf2_ros/transform_broadcaster.h"
+#include "nav2_costmap_2d/footprint.hpp"
 
 int main(int argc, char * argv[])
 {
+  const auto footprint_default_loaded =
+    "[ [0.55, 0.32], [-0.47, 0.32], [-0.47, -0.32], [0.55, -0.32] ]";
+  const auto footprint_default_unloaded = "";  // will default to a circle
+
   rclcpp::init(argc, argv);
 
   const auto node = std::make_shared<rclcpp::Node>("nav_to_anywhere");
 
   tf2_ros::TransformBroadcaster tf_broadcaster(*node);
   const auto local_footprint_pub = node->create_publisher<geometry_msgs::msg::PolygonStamped>(
-    "local_costmap/published_footprint", rclcpp::SystemDefaultsQoS());
+    node->declare_parameter<std::string>("topic_footprint", "local_costmap/published_footprint"),
+    rclcpp::SystemDefaultsQoS());
+
+  std::vector<geometry_msgs::msg::Point> footprint;
+  const auto footprint_loaded = nav2_costmap_2d::makeFootprintFromString(
+    node->declare_parameter<std::string>("footprint_loaded", footprint_default_loaded),
+    footprint
+    ) ? footprint : nav2_costmap_2d::makeFootprintFromRadius(0.3);
+
+  footprint.clear();
+  const auto footprint_unloaded = nav2_costmap_2d::makeFootprintFromString(
+    node->declare_parameter<std::string>("footprint_unloaded", footprint_default_unloaded),
+    footprint
+    ) ? footprint : nav2_costmap_2d::makeFootprintFromRadius(0.3);
 
   using NavigateToPose = nav2_msgs::action::NavigateToPose;
   using GoalHandleNavigateToPose = rclcpp_action::ServerGoalHandle<NavigateToPose>;
