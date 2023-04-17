@@ -21,7 +21,7 @@ jobs:
             os: "ubuntu-20.04"
           - ros_distribution: "humble"
             os: "ubuntu-22.04"
-    runs-on: "ubuntu-22.04"
+    runs-on: ubuntu-latest
     container:
       image: "osrf/ros:${{ matrix.ros_distribution }}-desktop"
     steps:
@@ -29,7 +29,7 @@ jobs:
         uses: actions/checkout@v3
       - name: Install deps
         run: sudo apt-get update && sudo apt-get install -y wget python3-vcstool python3-colcon-coveragepy-result python3-colcon-lcov-result lcov
-      - uses : ros-tooling/action-ros-ci@v0.3
+      - uses : ros-tooling/action-ros-ci@master
         with:
           package-name: nav_to_anywhere
           target-ros2-distro: ${{ matrix.ros_distribution }}
