@@ -11,13 +11,15 @@
 #include "tf2_ros/transform_broadcaster.h"
 #include "nav2_costmap_2d/footprint.hpp"
 
-std::string footprint_default_loaded =
-  "[ [0.45, 0.33], [-0.45, 0.33], [-0.45, -0.33], [0.45, -0.33] ]";
-std::string footprint_default_unloaded =
-  "[ [-0.21, -0.25], [-0.09, -0.31], [0.0, -0.32], [0.10, -0.310], [0.25, -0.24], [0.345, -0.13], [0.38, 0.0], [0.345, 0.13], [0.25, 0.24], [0.10, 0.31], [0.0, 0.32], [-0.09, 0.31], [-0.21, 0.25] ]";
-
 int main(int argc, char * argv[])
 {
+  std::string footprint_default_loaded =
+    "[ [0.45, 0.33], [-0.45, 0.33], [-0.45, -0.33], [0.45, -0.33] ]";
+  std::string footprint_default_unloaded =
+    "[ [-0.21, -0.25], [-0.09, -0.31], [0.0, -0.32], [0.10, -0.310], [0.25, -0.24], [0.345, -0.13]"
+    ", [0.38, 0.0]"
+    ", [0.345, 0.13], [0.25, 0.24], [0.10, 0.31], [0.0, 0.32], [-0.09, 0.31], [-0.21, 0.25] ]";
+
   rclcpp::init(argc, argv);
 
   const auto node = std::make_shared<rclcpp::Node>("nav_to_anywhere");
@@ -29,18 +31,14 @@ int main(int argc, char * argv[])
 
   std::vector<geometry_msgs::msg::Point> footprint;
   const auto footprint_unloaded = nav2_costmap_2d::makeFootprintFromString(
-    node->declare_parameter<std::string>(
-      "footprint_unloaded",
-      footprint_default_unloaded), footprint) ?
-    footprint :
-    nav2_costmap_2d::makeFootprintFromRadius(0.3);
+    node->declare_parameter<std::string>("footprint_unloaded", footprint_default_unloaded),
+    footprint
+    ) ? footprint : nav2_costmap_2d::makeFootprintFromRadius(0.3);
 
   const auto footprint_loaded = nav2_costmap_2d::makeFootprintFromString(
-    node->declare_parameter<std::string>(
-      "footprint_loaded",
-      footprint_default_loaded), footprint) ?
-    footprint :
-    nav2_costmap_2d::makeFootprintFromRadius(0.3);
+    node->declare_parameter<std::string>("footprint_loaded", footprint_default_loaded),
+    footprint
+    ) ? footprint : nav2_costmap_2d::makeFootprintFromRadius(0.3);
 
   using NavigateToPose = nav2_msgs::action::NavigateToPose;
   using GoalHandleNavigateToPose = rclcpp_action::ServerGoalHandle<NavigateToPose>;
