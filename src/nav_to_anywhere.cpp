@@ -147,6 +147,10 @@ int main(int argc, char * argv[])
         if (goal_reached) {
           current_goal_handle->succeed(std::make_unique<NavigateToPose::Result>());
           current_goal_handle.reset();
+        } else if (current_goal_handle->is_canceling()) {
+          auto result = std::make_shared<NavigateToPose::Result>();
+          current_goal_handle->canceled(result);
+          current_goal_handle.reset();
         }
       }
       /* broadcast base_footprint in map frame */
