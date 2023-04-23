@@ -25,6 +25,7 @@ struct Config
   std::vector<geometry_msgs::msg::Point> footprint;
   std::vector<geometry_msgs::msg::Point> footprint_loaded;
   std::vector<geometry_msgs::msg::Point> footprint_unloaded;
+  geometry_msgs::msg::Pose2D pos_active{};
 };
 
 geometry_msgs::msg::PolygonStamped transformFootprint(
@@ -86,7 +87,6 @@ int main(int argc, char * argv[])
   using NavigateToPose = nav2_msgs::action::NavigateToPose;
   using GoalHandleNavigateToPose = rclcpp_action::ServerGoalHandle<NavigateToPose>;
 
-  geometry_msgs::msg::Pose2D pos_active;
   std::shared_ptr<GoalHandleNavigateToPose> current_goal_handle;
   auto nav_start_time = node->get_clock()->now();
 
@@ -99,9 +99,9 @@ int main(int argc, char * argv[])
       geometry_msgs::msg::TransformStamped transform;
       transform.header.frame_id = "map";
       transform.child_frame_id = "base_footprint";
-      transform.transform.translation.x = pos_active.x;
-      transform.transform.translation.y = pos_active.y;
-      transform.transform.rotation = nav_2d_utils::pose2DToPose(pos_active).orientation;
+      transform.transform.translation.x = config.pos_active.x;
+      transform.transform.translation.y = config.pos_active.y;
+      transform.transform.rotation = nav_2d_utils::pose2DToPose(config.pos_active).orientation;
       transform.header.stamp = node->get_clock()->now();
       tf_broadcaster.sendTransform(transform);
     };
@@ -131,8 +131,8 @@ int main(int argc, char * argv[])
 
       const auto pos_target = nav_2d_utils::poseToPose2D(
         current_goal_handle->get_goal()->pose.pose);
-      const auto dy = pos_target.y - pos_active.y;
-      const auto dx = pos_target.x - pos_active.x;
+      const auto dy = pos_target.y - config.pos_active.y;
+      const auto dx = pos_target.x - config.pos_active.x;
       const auto theta = std::atan2(dy, dx);
 
       const auto vx = std::cos(theta) * velocity;
@@ -142,14 +142,14 @@ int main(int argc, char * argv[])
 
       /* if we are within one step of our goal */
       if (dy * dy + dx * dx < idy * idy + idx * idx) {
-        pos_active.x = pos_target.x;
-        pos_active.y = pos_target.y;
-        pos_active.theta = pos_target.theta;
+        config.pos_active.x = pos_target.x;
+        config.pos_active.y = pos_target.y;
+        config.pos_active.theta = pos_target.theta;
         return true;
       } else {
-        pos_active.x += idx;
-        pos_active.y += idy;
-        pos_active.theta = theta;
+        config.pos_active.x += idx;
+        config.pos_active.y += idy;
+        config.pos_active.theta = theta;
       }
       return false;
     };
@@ -164,7 +164,7 @@ int main(int argc, char * argv[])
 
         auto feedback = std::make_unique<NavigateToPose::Feedback>();
         feedback->number_of_recoveries = 0;
-        feedback->current_pose.pose = nav_2d_utils::pose2DToPose(pos_active);
+        feedback->current_pose.pose = nav_2d_utils::pose2DToPose(config.pos_active);
         feedback->navigation_time = node->get_clock()->now() - nav_start_time;
         current_goal_handle->publish_feedback(std::move(feedback));
 
@@ -181,7 +181,7 @@ int main(int argc, char * argv[])
       broadcast_tf();
 
       /* publish local footprint */
-      local_footprint_pub->publish(transformFootprint(pos_active, config.footprint));
+      local_footprint_pub->publish(transformFootprint(config.pos_active, config.footprint));
     });
 
 
