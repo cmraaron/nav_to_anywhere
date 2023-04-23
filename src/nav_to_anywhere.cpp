@@ -92,16 +92,17 @@ int main(int argc, char * argv[])
   std::shared_ptr<GoalHandleNavigateToPose> current_goal_handle;
   auto nav_start_time = node->get_clock()->now();
 
-  /* broadcast map -> base_footprint tf */
-  const auto broadcast_tf = [&]() {
+  /* map -> base_footprint tf */
+  const auto get_transform =
+    [](const geometry_msgs::msg::Pose2D & pose, const rclcpp::Time & stamp) {
       geometry_msgs::msg::TransformStamped transform;
       transform.header.frame_id = "map";
       transform.child_frame_id = "base_footprint";
-      transform.transform.translation.x = config.pos_active.x;
-      transform.transform.translation.y = config.pos_active.y;
-      transform.transform.rotation = nav_2d_utils::pose2DToPose(config.pos_active).orientation;
-      transform.header.stamp = node->get_clock()->now();
-      tf_broadcaster.sendTransform(transform);
+      transform.transform.translation.x = pose.x;
+      transform.transform.translation.y = pose.y;
+      transform.transform.rotation = nav_2d_utils::pose2DToPose(pose).orientation;
+      transform.header.stamp = stamp;
+      return transform;
     };
 
 
@@ -176,7 +177,7 @@ int main(int argc, char * argv[])
         }
       }
       /* broadcast base_footprint in map frame */
-      broadcast_tf();
+      tf_broadcaster.sendTransform(get_transform(config.pos_active, node->get_clock()->now()));
 
       /* publish local footprint */
       local_footprint_pub->publish(transformFootprint(config.pos_active, config.footprint));
