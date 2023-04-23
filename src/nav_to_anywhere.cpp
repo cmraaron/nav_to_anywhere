@@ -159,6 +159,17 @@ int main(int argc, char * argv[])
     .nav_start_time = node->get_clock()->now(),
   };
 
+  RCLCPP_INFO_STREAM(
+    node->get_logger(), "nav_to_anywhere config:" <<
+      "\n  Params:               " <<
+      "\n    topic_footprint:    " << params.topic_footprint <<
+      "\n    footprint_loaded:   " << params.footprint_loaded <<
+      "\n    footprint_unloaded: " << params.footprint_unloaded <<
+      "\n  Config:               " <<
+      "\n    fp loaded points:   " << config.footprint_loaded.size() <<
+      "\n    fp unloaded points: " << config.footprint_unloaded.size() <<
+      "\n    interval (seconds): " << config.interval
+  );
   tf2_ros::TransformBroadcaster tf_broadcaster(*node);
   const auto local_footprint_pub = node->create_publisher<geometry_msgs::msg::PolygonStamped>(
     params.topic_footprint,
