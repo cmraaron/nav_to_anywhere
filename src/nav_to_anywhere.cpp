@@ -73,6 +73,53 @@ get_transform(const geometry_msgs::msg::Pose2D & pose, const rclcpp::Time & stam
   return transform;
 }
 
+/* increment mission progress */
+bool update_current_pos(
+  Agent & agent, const Config & config, const rclcpp::Time & stamp,
+  const std::vector<ActionDetail> & bt_actions)
+{
+  const auto current_action = get_action(
+    bt_actions,
+    agent.get_goal()->behavior_tree);
+
+  if (current_action.type == ACTION_PICK || current_action.type == ACTION_DROP) {
+    const auto elapsed_time = stamp - agent.nav_start_time;
+    if (elapsed_time.seconds() > current_action.duration) {
+      agent.footprint = current_action.type == ACTION_PICK ?
+        config.footprint_loaded :
+        config.footprint_unloaded;
+      return true;
+    }
+    return false;
+  }
+
+  if (current_action.type != ACTION_NAV) {
+    return true;
+  }
+  const auto pos_target = nav_2d_utils::poseToPose2D(agent.get_goal()->pose.pose);
+  const auto dy = pos_target.y - agent.pos_active.y;
+  const auto dx = pos_target.x - agent.pos_active.x;
+  const auto theta = std::atan2(dy, dx);
+
+  const auto vx = std::cos(theta) * agent.velocity;
+  const auto vy = std::sin(theta) * agent.velocity;
+  const auto idx = vx * config.interval;
+  const auto idy = vy * config.interval;
+
+  /* if we are within one step of our goal */
+  if (dy * dy + dx * dx < idy * idy + idx * idx) {
+    agent.pos_active.x = pos_target.x;
+    agent.pos_active.y = pos_target.y;
+    agent.pos_active.theta = pos_target.theta;
+    return true;
+  } else {
+    agent.pos_active.x += idx;
+    agent.pos_active.y += idy;
+    agent.pos_active.theta = theta;
+  }
+  return false;
+}
+
 int main(int argc, char * argv[])
 {
   const auto footprint_default_loaded =
@@ -117,52 +164,6 @@ int main(int argc, char * argv[])
     params.topic_footprint,
     rclcpp::SystemDefaultsQoS());
 
-  /* increment mission progress */
-  const auto update_current_pos =
-    [&](Agent & agent, const Config & config, const rclcpp::Time & stamp) {
-      const auto current_action = get_action(
-        bt_actions,
-        agent.get_goal()->behavior_tree);
-
-      if (current_action.type == ACTION_PICK || current_action.type == ACTION_DROP) {
-        const auto elapsed_time = stamp - agent.nav_start_time;
-        if (elapsed_time.seconds() > current_action.duration) {
-          agent.footprint = current_action.type == ACTION_PICK ?
-            config.footprint_loaded :
-            config.footprint_unloaded;
-          return true;
-        }
-        return false;
-      }
-
-      if (current_action.type != ACTION_NAV) {
-        RCLCPP_INFO(node->get_logger(), "Beep boop - doing robot stuff");
-        return true;
-      }
-      const auto pos_target = nav_2d_utils::poseToPose2D(agent.get_goal()->pose.pose);
-      const auto dy = pos_target.y - agent.pos_active.y;
-      const auto dx = pos_target.x - agent.pos_active.x;
-      const auto theta = std::atan2(dy, dx);
-
-      const auto vx = std::cos(theta) * agent.velocity;
-      const auto vy = std::sin(theta) * agent.velocity;
-      const auto idx = vx * config.interval;
-      const auto idy = vy * config.interval;
-
-      /* if we are within one step of our goal */
-      if (dy * dy + dx * dx < idy * idy + idx * idx) {
-        agent.pos_active.x = pos_target.x;
-        agent.pos_active.y = pos_target.y;
-        agent.pos_active.theta = pos_target.theta;
-        return true;
-      } else {
-        agent.pos_active.x += idx;
-        agent.pos_active.y += idy;
-        agent.pos_active.theta = theta;
-      }
-      return false;
-    };
-
 
   /* periodic timer for incrementing progress */
   const auto tick = node->create_wall_timer(
@@ -170,7 +171,7 @@ int main(int argc, char * argv[])
       /* if we have an active mission */
       if (agent.current_goal_handle) {
         const auto goal_reached = update_current_pos(
-          agent, config, node->get_clock()->now());
+          agent, config, node->get_clock()->now(), bt_actions);
 
         auto feedback = std::make_unique<NavigateToPose::Feedback>();
         feedback->number_of_recoveries = 0;
