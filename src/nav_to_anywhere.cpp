@@ -20,6 +20,13 @@ struct Params
   std::string footprint_unloaded;
 };
 
+struct Config
+{
+  std::vector<geometry_msgs::msg::Point> footprint;
+  std::vector<geometry_msgs::msg::Point> footprint_loaded;
+  std::vector<geometry_msgs::msg::Point> footprint_unloaded;
+};
+
 geometry_msgs::msg::PolygonStamped transformFootprint(
   const geometry_msgs::msg::Pose2D & pose,
   const std::vector<geometry_msgs::msg::Point> & footprint)
@@ -58,22 +65,23 @@ int main(int argc, char * argv[])
       node->declare_parameter<std::string>("footprint_unloaded", footprint_default_unloaded),
   };
 
+  Config config {};
+
   tf2_ros::TransformBroadcaster tf_broadcaster(*node);
   const auto local_footprint_pub = node->create_publisher<geometry_msgs::msg::PolygonStamped>(
     params.topic_footprint,
     rclcpp::SystemDefaultsQoS());
 
-  std::vector<geometry_msgs::msg::Point> footprint;
-  const auto footprint_loaded = nav2_costmap_2d::makeFootprintFromString(
+  config.footprint_loaded = nav2_costmap_2d::makeFootprintFromString(
     params.footprint_loaded,
-    footprint
-    ) ? footprint : nav2_costmap_2d::makeFootprintFromRadius(0.3);
+    config.footprint
+    ) ? config.footprint : nav2_costmap_2d::makeFootprintFromRadius(0.3);
 
-  footprint.clear();
-  const auto footprint_unloaded = nav2_costmap_2d::makeFootprintFromString(
+  config.footprint.clear();
+  config.footprint_unloaded = nav2_costmap_2d::makeFootprintFromString(
     params.footprint_unloaded,
-    footprint
-    ) ? footprint : nav2_costmap_2d::makeFootprintFromRadius(0.3);
+    config.footprint
+    ) ? config.footprint : nav2_costmap_2d::makeFootprintFromRadius(0.3);
 
   using NavigateToPose = nav2_msgs::action::NavigateToPose;
   using GoalHandleNavigateToPose = rclcpp_action::ServerGoalHandle<NavigateToPose>;
@@ -108,9 +116,9 @@ int main(int argc, char * argv[])
       if (current_action.type == ACTION_PICK || current_action.type == ACTION_DROP) {
         const auto elapsed_time = node->get_clock()->now() - nav_start_time;
         if (elapsed_time.seconds() > current_action.duration) {
-          footprint = current_action.type == ACTION_PICK ?
-            footprint_loaded :
-            footprint_unloaded;
+          config.footprint = current_action.type == ACTION_PICK ?
+            config.footprint_loaded :
+            config.footprint_unloaded;
           return true;
         }
         return false;
@@ -173,7 +181,7 @@ int main(int argc, char * argv[])
       broadcast_tf();
 
       /* publish local footprint */
-      local_footprint_pub->publish(transformFootprint(pos_active, footprint));
+      local_footprint_pub->publish(transformFootprint(pos_active, config.footprint));
     });
 
 
