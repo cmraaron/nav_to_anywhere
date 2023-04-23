@@ -27,6 +27,7 @@ struct Config
   std::vector<geometry_msgs::msg::Point> footprint_unloaded;
   geometry_msgs::msg::Pose2D pos_active{};
   const float velocity = 1;    // m/s
+  const float interval = 0.2;  // seconds
 };
 
 geometry_msgs::msg::PolygonStamped transformFootprint(
@@ -91,9 +92,6 @@ int main(int argc, char * argv[])
   std::shared_ptr<GoalHandleNavigateToPose> current_goal_handle;
   auto nav_start_time = node->get_clock()->now();
 
-  const auto interval = 0.2;  // seconds
-
-
   /* broadcast map -> base_footprint tf */
   const auto broadcast_tf = [&]() {
       geometry_msgs::msg::TransformStamped transform;
@@ -137,8 +135,8 @@ int main(int argc, char * argv[])
 
       const auto vx = std::cos(theta) * config.velocity;
       const auto vy = std::sin(theta) * config.velocity;
-      const auto idx = vx * interval;
-      const auto idy = vy * interval;
+      const auto idx = vx * config.interval;
+      const auto idy = vy * config.interval;
 
       /* if we are within one step of our goal */
       if (dy * dy + dx * dx < idy * idy + idx * idx) {
@@ -157,7 +155,7 @@ int main(int argc, char * argv[])
 
   /* periodic timer for incrementing progress */
   const auto tick = node->create_wall_timer(
-    std::chrono::milliseconds(static_cast<int>(interval * 1000)), [&]() {
+    std::chrono::milliseconds(static_cast<int>(config.interval * 1000)), [&]() {
       /* if we have an active mission */
       if (current_goal_handle) {
         const auto goal_reached = update_current_pos();
