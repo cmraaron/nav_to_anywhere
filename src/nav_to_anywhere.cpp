@@ -23,8 +23,8 @@ struct Params
 struct Config
 {
   std::vector<geometry_msgs::msg::Point> footprint;
-  std::vector<geometry_msgs::msg::Point> footprint_loaded;
-  std::vector<geometry_msgs::msg::Point> footprint_unloaded;
+  const std::vector<geometry_msgs::msg::Point> footprint_loaded;
+  const std::vector<geometry_msgs::msg::Point> footprint_unloaded;
   geometry_msgs::msg::Pose2D pos_active{};
   const float velocity = 1;    // m/s
   const float interval = 0.2;  // seconds
@@ -75,15 +75,16 @@ int main(int argc, char * argv[])
       node->declare_parameter<std::string>("footprint_unloaded", footprint_default_unloaded),
   };
 
-  Config config {};
+  Config config {
+    .footprint = {},
+    .footprint_loaded = makeFootprintFromString(params.footprint_loaded),
+    .footprint_unloaded = makeFootprintFromString(params.footprint_unloaded),
+  };
 
   tf2_ros::TransformBroadcaster tf_broadcaster(*node);
   const auto local_footprint_pub = node->create_publisher<geometry_msgs::msg::PolygonStamped>(
     params.topic_footprint,
     rclcpp::SystemDefaultsQoS());
-
-  config.footprint_loaded = makeFootprintFromString(params.footprint_loaded);
-  config.footprint_unloaded = makeFootprintFromString(params.footprint_unloaded);
 
   using NavigateToPose = nav2_msgs::action::NavigateToPose;
   using GoalHandleNavigateToPose = rclcpp_action::ServerGoalHandle<NavigateToPose>;
