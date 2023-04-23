@@ -22,12 +22,16 @@ struct Params
 
 struct Config
 {
-  std::vector<geometry_msgs::msg::Point> footprint;
   const std::vector<geometry_msgs::msg::Point> footprint_loaded;
   const std::vector<geometry_msgs::msg::Point> footprint_unloaded;
+  const float interval = 0.2;  // seconds
+};
+
+struct Agent
+{
+  std::vector<geometry_msgs::msg::Point> footprint;
   geometry_msgs::msg::Pose2D pos_active{};
   const float velocity = 1;    // m/s
-  const float interval = 0.2;  // seconds
 };
 
 geometry_msgs::msg::PolygonStamped transformFootprint(
@@ -76,9 +80,12 @@ int main(int argc, char * argv[])
   };
 
   Config config {
-    .footprint = {},
     .footprint_loaded = makeFootprintFromString(params.footprint_loaded),
     .footprint_unloaded = makeFootprintFromString(params.footprint_unloaded),
+  };
+
+  Agent agent {
+    .footprint = config.footprint_unloaded,
   };
 
   tf2_ros::TransformBroadcaster tf_broadcaster(*node);
@@ -115,7 +122,7 @@ int main(int argc, char * argv[])
       if (current_action.type == ACTION_PICK || current_action.type == ACTION_DROP) {
         const auto elapsed_time = node->get_clock()->now() - nav_start_time;
         if (elapsed_time.seconds() > current_action.duration) {
-          config.footprint = current_action.type == ACTION_PICK ?
+          agent.footprint = current_action.type == ACTION_PICK ?
             config.footprint_loaded :
             config.footprint_unloaded;
           return true;
@@ -130,25 +137,25 @@ int main(int argc, char * argv[])
 
       const auto pos_target = nav_2d_utils::poseToPose2D(
         current_goal_handle->get_goal()->pose.pose);
-      const auto dy = pos_target.y - config.pos_active.y;
-      const auto dx = pos_target.x - config.pos_active.x;
+      const auto dy = pos_target.y - agent.pos_active.y;
+      const auto dx = pos_target.x - agent.pos_active.x;
       const auto theta = std::atan2(dy, dx);
 
-      const auto vx = std::cos(theta) * config.velocity;
-      const auto vy = std::sin(theta) * config.velocity;
+      const auto vx = std::cos(theta) * agent.velocity;
+      const auto vy = std::sin(theta) * agent.velocity;
       const auto idx = vx * config.interval;
       const auto idy = vy * config.interval;
 
       /* if we are within one step of our goal */
       if (dy * dy + dx * dx < idy * idy + idx * idx) {
-        config.pos_active.x = pos_target.x;
-        config.pos_active.y = pos_target.y;
-        config.pos_active.theta = pos_target.theta;
+        agent.pos_active.x = pos_target.x;
+        agent.pos_active.y = pos_target.y;
+        agent.pos_active.theta = pos_target.theta;
         return true;
       } else {
-        config.pos_active.x += idx;
-        config.pos_active.y += idy;
-        config.pos_active.theta = theta;
+        agent.pos_active.x += idx;
+        agent.pos_active.y += idy;
+        agent.pos_active.theta = theta;
       }
       return false;
     };
@@ -163,7 +170,7 @@ int main(int argc, char * argv[])
 
         auto feedback = std::make_unique<NavigateToPose::Feedback>();
         feedback->number_of_recoveries = 0;
-        feedback->current_pose.pose = nav_2d_utils::pose2DToPose(config.pos_active);
+        feedback->current_pose.pose = nav_2d_utils::pose2DToPose(agent.pos_active);
         feedback->navigation_time = node->get_clock()->now() - nav_start_time;
         current_goal_handle->publish_feedback(std::move(feedback));
 
@@ -177,10 +184,10 @@ int main(int argc, char * argv[])
         }
       }
       /* broadcast base_footprint in map frame */
-      tf_broadcaster.sendTransform(get_transform(config.pos_active, node->get_clock()->now()));
+      tf_broadcaster.sendTransform(get_transform(agent.pos_active, node->get_clock()->now()));
 
       /* publish local footprint */
-      local_footprint_pub->publish(transformFootprint(config.pos_active, config.footprint));
+      local_footprint_pub->publish(transformFootprint(agent.pos_active, agent.footprint));
     });
 
 
