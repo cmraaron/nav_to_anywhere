@@ -139,9 +139,7 @@ int main(int argc, char * argv[])
         RCLCPP_INFO(node->get_logger(), "Beep boop - doing robot stuff");
         return true;
       }
-
-      const auto pos_target = nav_2d_utils::poseToPose2D(
-        agent.get_goal()->pose.pose);
+      const auto pos_target = nav_2d_utils::poseToPose2D(agent.get_goal()->pose.pose);
       const auto dy = pos_target.y - agent.pos_active.y;
       const auto dx = pos_target.x - agent.pos_active.x;
       const auto theta = std::atan2(dy, dx);
