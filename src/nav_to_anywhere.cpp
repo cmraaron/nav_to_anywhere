@@ -118,13 +118,14 @@ int main(int argc, char * argv[])
 
 
   /* increment mission progress */
-  const auto update_current_pos = [&]() {
+  const auto update_current_pos =
+    [&](Agent & agent, const Config & config, const rclcpp::Time & stamp) {
       const auto current_action = get_action(
         bt_actions,
         agent.get_goal()->behavior_tree);
 
       if (current_action.type == ACTION_PICK || current_action.type == ACTION_DROP) {
-        const auto elapsed_time = node->get_clock()->now() - agent.nav_start_time;
+        const auto elapsed_time = stamp - agent.nav_start_time;
         if (elapsed_time.seconds() > current_action.duration) {
           agent.footprint = current_action.type == ACTION_PICK ?
             config.footprint_loaded :
@@ -170,7 +171,8 @@ int main(int argc, char * argv[])
     std::chrono::milliseconds(static_cast<int>(config.interval * 1000)), [&]() {
       /* if we have an active mission */
       if (agent.current_goal_handle) {
-        const auto goal_reached = update_current_pos();
+        const auto goal_reached = update_current_pos(
+          agent, config, node->get_clock()->now());
 
         auto feedback = std::make_unique<NavigateToPose::Feedback>();
         feedback->number_of_recoveries = 0;
