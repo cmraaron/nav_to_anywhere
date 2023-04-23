@@ -59,6 +59,20 @@ std::vector<geometry_msgs::msg::Point> makeFootprintFromString(const std::string
          fp : nav2_costmap_2d::makeFootprintFromRadius(0.3);
 }
 
+/* map -> base_footprint tf */
+geometry_msgs::msg::TransformStamped
+get_transform(const geometry_msgs::msg::Pose2D & pose, const rclcpp::Time & stamp)
+{
+  geometry_msgs::msg::TransformStamped transform;
+  transform.header.frame_id = "map";
+  transform.child_frame_id = "base_footprint";
+  transform.transform.translation.x = pose.x;
+  transform.transform.translation.y = pose.y;
+  transform.transform.rotation = nav_2d_utils::pose2DToPose(pose).orientation;
+  transform.header.stamp = stamp;
+  return transform;
+}
+
 int main(int argc, char * argv[])
 {
   const auto footprint_default_loaded =
@@ -102,20 +116,6 @@ int main(int argc, char * argv[])
   const auto local_footprint_pub = node->create_publisher<geometry_msgs::msg::PolygonStamped>(
     params.topic_footprint,
     rclcpp::SystemDefaultsQoS());
-
-  /* map -> base_footprint tf */
-  const auto get_transform =
-    [](const geometry_msgs::msg::Pose2D & pose, const rclcpp::Time & stamp) {
-      geometry_msgs::msg::TransformStamped transform;
-      transform.header.frame_id = "map";
-      transform.child_frame_id = "base_footprint";
-      transform.transform.translation.x = pose.x;
-      transform.transform.translation.y = pose.y;
-      transform.transform.rotation = nav_2d_utils::pose2DToPose(pose).orientation;
-      transform.header.stamp = stamp;
-      return transform;
-    };
-
 
   /* increment mission progress */
   const auto update_current_pos =
