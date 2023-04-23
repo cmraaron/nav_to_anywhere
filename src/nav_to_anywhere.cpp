@@ -39,6 +39,13 @@ geometry_msgs::msg::PolygonStamped transformFootprint(
   return oriented_footprint;
 }
 
+std::vector<geometry_msgs::msg::Point> makeFootprintFromString(const std::string & fp_string)
+{
+  std::vector<geometry_msgs::msg::Point> fp;
+  return nav2_costmap_2d::makeFootprintFromString(fp_string, fp) ?
+         fp : nav2_costmap_2d::makeFootprintFromRadius(0.3);
+}
+
 int main(int argc, char * argv[])
 {
   const auto footprint_default_loaded =
@@ -75,16 +82,8 @@ int main(int argc, char * argv[])
     params.topic_footprint,
     rclcpp::SystemDefaultsQoS());
 
-  config.footprint_loaded = nav2_costmap_2d::makeFootprintFromString(
-    params.footprint_loaded,
-    config.footprint
-    ) ? config.footprint : nav2_costmap_2d::makeFootprintFromRadius(0.3);
-
-  config.footprint.clear();
-  config.footprint_unloaded = nav2_costmap_2d::makeFootprintFromString(
-    params.footprint_unloaded,
-    config.footprint
-    ) ? config.footprint : nav2_costmap_2d::makeFootprintFromRadius(0.3);
+  config.footprint_loaded = makeFootprintFromString(params.footprint_loaded);
+  config.footprint_unloaded = makeFootprintFromString(params.footprint_unloaded);
 
   using NavigateToPose = nav2_msgs::action::NavigateToPose;
   using GoalHandleNavigateToPose = rclcpp_action::ServerGoalHandle<NavigateToPose>;
