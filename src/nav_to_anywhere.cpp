@@ -26,6 +26,7 @@ struct Config
   std::vector<geometry_msgs::msg::Point> footprint_loaded;
   std::vector<geometry_msgs::msg::Point> footprint_unloaded;
   geometry_msgs::msg::Pose2D pos_active{};
+  const float velocity = 1;    // m/s
 };
 
 geometry_msgs::msg::PolygonStamped transformFootprint(
@@ -91,7 +92,6 @@ int main(int argc, char * argv[])
   auto nav_start_time = node->get_clock()->now();
 
   const auto interval = 0.2;  // seconds
-  const auto velocity = 1;    // m/s
 
 
   /* broadcast map -> base_footprint tf */
@@ -135,8 +135,8 @@ int main(int argc, char * argv[])
       const auto dx = pos_target.x - config.pos_active.x;
       const auto theta = std::atan2(dy, dx);
 
-      const auto vx = std::cos(theta) * velocity;
-      const auto vy = std::sin(theta) * velocity;
+      const auto vx = std::cos(theta) * config.velocity;
+      const auto vy = std::sin(theta) * config.velocity;
       const auto idx = vx * interval;
       const auto idy = vy * interval;
 
