@@ -13,6 +13,13 @@
 #include "nav2_costmap_2d/footprint.hpp"
 #include "nav_to_anywhere/utils.hpp"
 
+struct Params
+{
+  std::string topic_footprint;
+  std::string footprint_loaded;
+  std::string footprint_unloaded;
+};
+
 geometry_msgs::msg::PolygonStamped transformFootprint(
   const geometry_msgs::msg::Pose2D & pose,
   const std::vector<geometry_msgs::msg::Point> & footprint)
@@ -42,20 +49,29 @@ int main(int argc, char * argv[])
     );
   }
 
+  const Params params {
+    .topic_footprint =
+      node->declare_parameter<std::string>("topic_footprint", "local_costmap/published_footprint"),
+    .footprint_loaded =
+      node->declare_parameter<std::string>("footprint_loaded", footprint_default_loaded),
+    .footprint_unloaded =
+      node->declare_parameter<std::string>("footprint_unloaded", footprint_default_unloaded),
+  };
+
   tf2_ros::TransformBroadcaster tf_broadcaster(*node);
   const auto local_footprint_pub = node->create_publisher<geometry_msgs::msg::PolygonStamped>(
-    node->declare_parameter<std::string>("topic_footprint", "local_costmap/published_footprint"),
+    params.topic_footprint,
     rclcpp::SystemDefaultsQoS());
 
   std::vector<geometry_msgs::msg::Point> footprint;
   const auto footprint_loaded = nav2_costmap_2d::makeFootprintFromString(
-    node->declare_parameter<std::string>("footprint_loaded", footprint_default_loaded),
+    params.footprint_loaded,
     footprint
     ) ? footprint : nav2_costmap_2d::makeFootprintFromRadius(0.3);
 
   footprint.clear();
   const auto footprint_unloaded = nav2_costmap_2d::makeFootprintFromString(
-    node->declare_parameter<std::string>("footprint_unloaded", footprint_default_unloaded),
+    params.footprint_unloaded,
     footprint
     ) ? footprint : nav2_costmap_2d::makeFootprintFromRadius(0.3);
 
