@@ -12,6 +12,15 @@
 #include "tf2_ros/transform_broadcaster.h"
 #include "nav2_costmap_2d/footprint.hpp"
 
+geometry_msgs::msg::PolygonStamped transformFootprint(
+  const geometry_msgs::msg::Pose2D & pose,
+  const std::vector<geometry_msgs::msg::Point> & footprint)
+{
+  geometry_msgs::msg::PolygonStamped oriented_footprint;
+  nav2_costmap_2d::transformFootprint(pose.x, pose.y, pose.theta, footprint, oriented_footprint);
+  return oriented_footprint;
+}
+
 int main(int argc, char * argv[])
 {
   const auto footprint_default_loaded =
@@ -120,11 +129,7 @@ int main(int argc, char * argv[])
         }
       }
       broadcast_tf();
-      geometry_msgs::msg::PolygonStamped oriented_footprint;
-      nav2_costmap_2d::transformFootprint(
-        pos_active.x, pos_active.y, pos_active.theta, footprint,
-        oriented_footprint);
-      local_footprint_pub->publish(oriented_footprint);
+      local_footprint_pub->publish(transformFootprint(pos_active, footprint));
     });
 
   const auto nav_to_pose_action_service = rclcpp_action::create_server<NavigateToPose>(
