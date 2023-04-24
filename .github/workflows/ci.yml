@@ -22,12 +22,24 @@ jobs:
           - ros_distribution: "humble"
             os: "ubuntu-22.04"
     runs-on: "ubuntu-22.04"
+    container:
+      image: "osrf/ros:${{ matrix.ros_distribution }}-desktop"
     steps:
       - name: Checkout this repository
         uses: actions/checkout@v3
-      - uses: ros-industrial/industrial_ci@master
-        env:
-          ROS_DISTRO: ${{ matrix.ros_distribution }}
+      - name: Install deps
+        run: sudo apt-get update && sudo apt-get install -y wget python3-vcstool python3-colcon-coveragepy-result python3-colcon-lcov-result lcov
+      - uses : ros-tooling/action-ros-ci@v0.3
+        with:
+          package-name: nav_to_anywhere
+          target-ros2-distro: ${{ matrix.ros_distribution }}
+          colcon-defaults: |
+            {
+              "build": {
+                "mixin": ["coverage-gcc"]
+              }
+            }
+          colcon-mixin-repository: https://raw.githubusercontent.com/colcon/colcon-mixin-repository/master/index.yaml
       - uses: codecov/codecov-action@v3
         with:
           file: ros_ws/lcov/total_coverage.info
