@@ -16,14 +16,20 @@ jobs:
       matrix:
         include:
           - ros_distribution: "foxy"
+            image: "osrf/ros:foxy-desktop"
             os: "ubuntu-20.04"
           - ros_distribution: "galactic"
+            image: "osrf/ros:galactic-desktop"
             os: "ubuntu-20.04"
           - ros_distribution: "humble"
+            image: "osrf/ros:humble-desktop"
+            os: "ubuntu-22.04"
+          - ros_distribution: "rolling"
+            image: "ghcr.io/ros-planning/navigation2:main"
             os: "ubuntu-22.04"
     runs-on: ubuntu-latest
     container:
-      image: "osrf/ros:${{ matrix.ros_distribution }}-desktop"
+      image: "${{ matrix.image }}"
     steps:
       - name: Checkout this repository
         uses: actions/checkout@v3
