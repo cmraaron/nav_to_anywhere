@@ -19,8 +19,6 @@ jobs:
             os: "ubuntu-20.04"
           - ros_distribution: "humble"
             os: "ubuntu-22.04"
-          - ros_distribution: "rolling"
-            os: "ubuntu-22.04"
     runs-on: "ubuntu-22.04"
     container:
       image: "osrf/ros:${{ matrix.ros_distribution }}-desktop"
