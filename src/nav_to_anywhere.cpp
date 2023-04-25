@@ -21,6 +21,14 @@ geometry_msgs::msg::PolygonStamped transformFootprint(
   return oriented_footprint;
 }
 
+std::vector<std::string> known_actions{"pick", "drop", "reset", "navigate", "beepboop"};
+struct ActionDetail
+{
+  const std::string regex;
+  const std::vector<std::string>::iterator type;
+  const double duration;
+};
+
 int main(int argc, char * argv[])
 {
   const auto footprint_default_loaded =
@@ -30,6 +38,35 @@ int main(int argc, char * argv[])
   rclcpp::init(argc, argv);
 
   const auto node = std::make_shared<rclcpp::Node>("nav_to_anywhere");
+
+  std::vector<ActionDetail> bt_actions;
+
+  for (const auto & bt_action :
+    node->declare_parameter<std::vector<std::string>>("bt_actions", std::vector<std::string>{}))
+  {
+    const auto build_path = [&](const std::string & key) {
+        return "bt_action_details." + bt_action + "." + key;
+      };
+    const auto a_type = node->declare_parameter<std::string>(build_path("type"), "beepboop");
+    const auto parsed_action = std::find(known_actions.begin(), known_actions.end(), a_type);
+
+    if (parsed_action == known_actions.end()) {
+      RCLCPP_WARN(node->get_logger(), "action not supported [%s]", a_type.c_str());
+      continue;
+    }
+
+    const ActionDetail ad{
+      node->declare_parameter<std::string>(build_path("regex"), ""),
+      parsed_action,
+      node->declare_parameter<double>(build_path("duration"), 0.0)
+    };
+    bt_actions.push_back(ad);
+  }
+
+  for (const auto & detail : bt_actions) {
+    std::cout << detail.regex << " " << *detail.type << " " << detail.duration << "\n";
+  }
+  return 0;
 
   tf2_ros::TransformBroadcaster tf_broadcaster(*node);
   const auto local_footprint_pub = node->create_publisher<geometry_msgs::msg::PolygonStamped>(
