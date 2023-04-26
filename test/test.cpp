@@ -8,7 +8,9 @@
 
 struct TempFile
 {
-  const std::string path{std::tmpnam(nullptr)};
+  char templatebuf[90] = "/tmp/testXXXXXX";
+  int fd = mkstemp(templatebuf);
+  const std::string path{templatebuf};
 
   TempFile()
   {
