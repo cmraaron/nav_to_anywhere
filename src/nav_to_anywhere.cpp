@@ -29,16 +29,8 @@ struct ActionDetail
   const double duration;
 };
 
-int main(int argc, char * argv[])
+std::vector<ActionDetail> get_action_details(const rclcpp::Node::SharedPtr & node)
 {
-  const auto footprint_default_loaded =
-    "[ [0.55, 0.32], [-0.47, 0.32], [-0.47, -0.32], [0.55, -0.32] ]";
-  const auto footprint_default_unloaded = "";  // will default to a circle
-
-  rclcpp::init(argc, argv);
-
-  const auto node = std::make_shared<rclcpp::Node>("nav_to_anywhere");
-
   std::vector<ActionDetail> bt_actions;
 
   for (const auto & bt_action :
@@ -62,6 +54,20 @@ int main(int argc, char * argv[])
     };
     bt_actions.push_back(ad);
   }
+  return bt_actions;
+}
+
+int main(int argc, char * argv[])
+{
+  const auto footprint_default_loaded =
+    "[ [0.55, 0.32], [-0.47, 0.32], [-0.47, -0.32], [0.55, -0.32] ]";
+  const auto footprint_default_unloaded = "";  // will default to a circle
+
+  rclcpp::init(argc, argv);
+
+  const auto node = std::make_shared<rclcpp::Node>("nav_to_anywhere");
+
+  const auto bt_actions = get_action_details(node);
 
   for (const auto & detail : bt_actions) {
     std::cout << detail.regex << " " << *detail.type << " " << detail.duration << "\n";
