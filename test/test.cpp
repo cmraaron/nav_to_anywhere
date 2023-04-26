@@ -1,16 +1,19 @@
 // Copyright (c) 2023 Aaron Lipinski
 
 #include <fstream>
+#include <filesystem>
 #include "gtest/gtest.h"
 #include "rclcpp/rclcpp.hpp"
 #include "nav_to_anywhere/utils.hpp"
 
+namespace fs = std::filesystem;
 
 struct TempFile
 {
-  char templatebuf[90] = "/tmp/testXXXXXX";
-  int fd = mkstemp(templatebuf);
-  const std::string path{templatebuf};
+  FILE * tmpf = std::tmpfile();
+  const std::string path{
+    fs::read_symlink(fs::path("/proc/self/fd") / std::to_string(fileno(tmpf)))
+  };
 
   TempFile()
   {
