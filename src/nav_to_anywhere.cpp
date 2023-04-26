@@ -11,6 +11,7 @@
 #include "geometry_msgs/msg/polygon_stamped.hpp"
 #include "tf2_ros/transform_broadcaster.h"
 #include "nav2_costmap_2d/footprint.hpp"
+#include "nav_to_anywhere/utils.hpp"
 
 geometry_msgs::msg::PolygonStamped transformFootprint(
   const geometry_msgs::msg::Pose2D & pose,
@@ -19,42 +20,6 @@ geometry_msgs::msg::PolygonStamped transformFootprint(
   geometry_msgs::msg::PolygonStamped oriented_footprint;
   nav2_costmap_2d::transformFootprint(pose.x, pose.y, pose.theta, footprint, oriented_footprint);
   return oriented_footprint;
-}
-
-std::vector<std::string> known_actions{"pick", "drop", "reset", "navigate", "beepboop"};
-struct ActionDetail
-{
-  const std::string regex;
-  const std::vector<std::string>::iterator type;
-  const double duration;
-};
-
-std::vector<ActionDetail> get_action_details(const rclcpp::Node::SharedPtr & node)
-{
-  std::vector<ActionDetail> bt_actions;
-
-  for (const auto & bt_action :
-    node->declare_parameter<std::vector<std::string>>("bt_actions", std::vector<std::string>{}))
-  {
-    const auto build_path = [&](const std::string & key) {
-        return "bt_action_details." + bt_action + "." + key;
-      };
-    const auto a_type = node->declare_parameter<std::string>(build_path("type"), "beepboop");
-    const auto parsed_action = std::find(known_actions.begin(), known_actions.end(), a_type);
-
-    if (parsed_action == known_actions.end()) {
-      RCLCPP_WARN(node->get_logger(), "action not supported [%s]", a_type.c_str());
-      continue;
-    }
-
-    const ActionDetail ad{
-      node->declare_parameter<std::string>(build_path("regex"), ""),
-      parsed_action,
-      node->declare_parameter<double>(build_path("duration"), 0.0)
-    };
-    bt_actions.push_back(ad);
-  }
-  return bt_actions;
 }
 
 int main(int argc, char * argv[])
