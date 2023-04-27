@@ -1,6 +1,7 @@
 // Copyright (c) 2023 Aaron Lipinski
 
 #pragma once
+#include <regex>
 
 #include <string>
 #include <vector>
@@ -39,4 +40,20 @@ std::vector<ActionDetail> get_action_details(const rclcpp::Node::SharedPtr & nod
     bt_actions.push_back(ad);
   }
   return bt_actions;
+}
+
+std::string get_action(const std::vector<ActionDetail> & bt_actions, const std::string & bt_file)
+{
+  for (const auto & ad : bt_actions) {
+    try {
+      std::regex regex(ad.regex);
+      if (std::regex_search(bt_file, regex)) {
+        return *ad.type;
+      }
+    } catch (std::regex_error & e) {
+      return "_error_";
+    }
+  }
+
+  return "_unknown_";
 }

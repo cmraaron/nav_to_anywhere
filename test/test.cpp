@@ -63,6 +63,10 @@ TEST(Utils, get_action_details)
   const auto node = std::make_shared<rclcpp::Node>("test", no);
   const auto bt_actions = get_action_details(node);
 
-  EXPECT_TRUE(true);
+  EXPECT_EQ(get_action(bt_actions, "blahdock.xml"), "pick");
+  EXPECT_EQ(get_action(bt_actions, "blahundock.xml"), "drop");
+  EXPECT_EQ(get_action(bt_actions, "blahreset.xml"), "reset");
+  EXPECT_EQ(get_action(bt_actions, "blahnav.xml"), "navigate");
+  EXPECT_EQ(get_action(bt_actions, "nomatch.xml"), "_unknown_");
   rclcpp::shutdown();
 }
