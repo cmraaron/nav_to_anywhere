@@ -21,7 +21,7 @@ struct TempFile
     tmpstream <<
       "/**:\n"
       "  ros__parameters:\n"
-      "    bt_actions: ['undock', 'dock', 'reset', 'nav']\n"
+      "    bt_actions: ['undock', 'dock', 'reset', 'nav', 'default']\n"
       "    bt_action_details:\n"
       "      dock:\n"
       "        regex: 'dock.xml$'\n"
@@ -39,6 +39,7 @@ struct TempFile
       "        regex: 'nav.xml'\n"
       "        type: navigate\n"
       "      default:\n"
+      "        regex: ''\n"
       "        type: beepboop\n"
       "        duration: 4.0\n";
   }
@@ -67,6 +68,6 @@ TEST(Utils, get_action_details)
   EXPECT_EQ(get_action(bt_actions, "blahundock.xml"), "drop");
   EXPECT_EQ(get_action(bt_actions, "blahreset.xml"), "reset");
   EXPECT_EQ(get_action(bt_actions, "blahnav.xml"), "navigate");
-  EXPECT_EQ(get_action(bt_actions, "nomatch.xml"), "_unknown_");
+  EXPECT_EQ(get_action(bt_actions, "nomatch.xml"), "beepboop");
   rclcpp::shutdown();
 }
