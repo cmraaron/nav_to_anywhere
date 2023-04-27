@@ -32,12 +32,14 @@ int main(int argc, char * argv[])
 
   const auto node = std::make_shared<rclcpp::Node>("nav_to_anywhere");
 
-  const auto bt_actions = get_action_details(node);
-
+  const std::vector<ActionDetail> bt_actions{
+    {"dock", "dock\\.", "pick", 4.0, std::regex("dock\\.")},
+    {"undock", "undock\\.", "drop", 4.0, std::regex("undock\\.")},
+    {"reset", "-reset\\.", "reset", 4.0, std::regex("-reset\\.")},
+  };
   for (const auto & detail : bt_actions) {
     std::cout << detail.regex << " " << detail.type << " " << detail.duration << "\n";
   }
-  return 0;
 
   tf2_ros::TransformBroadcaster tf_broadcaster(*node);
   const auto local_footprint_pub = node->create_publisher<geometry_msgs::msg::PolygonStamped>(
@@ -79,18 +81,20 @@ int main(int argc, char * argv[])
     };
 
   const auto update_current_pos = [&]() {
-      if (current_goal_handle->get_goal()->behavior_tree.find("dock.") != std::string::npos) {
+      const auto current_action = get_action(
+        bt_actions,
+        current_goal_handle->get_goal()->behavior_tree);
+      if (current_action.type == "pick" || current_action.type == "drop") {
         const auto elapsed_time = node->get_clock()->now() - nav_start_time;
-        if (elapsed_time.seconds() > 4) {
-          footprint =
-            current_goal_handle->get_goal()->behavior_tree.find("undock.") != std::string::npos ?
-            footprint_unloaded :
-            footprint_loaded;
+        if (elapsed_time.seconds() > current_action.duration) {
+          footprint = current_action.type == "pick" ?
+            footprint_loaded :
+            footprint_unloaded;
           return true;
         }
         return false;
       }
-      if (current_goal_handle->get_goal()->behavior_tree.find("-reset.") != std::string::npos) {
+      if (current_action.type == "reset") {
         footprint = footprint_unloaded;
         return true;
       }

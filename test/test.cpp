@@ -24,7 +24,7 @@ struct TempFile
       "    bt_actions: ['undock', 'dock', 'reset', 'nav', 'default', 'except']\n"
       "    bt_action_details:\n"
       "      dock:\n"
-      "        regex: 'dock.xml$'\n"
+      "        regex: 'dock\\.xml$'\n"
       "        type: pick\n"
       "        duration: 4.0\n"
       "      undock:\n"
