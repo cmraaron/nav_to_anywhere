@@ -35,7 +35,7 @@ int main(int argc, char * argv[])
   const auto bt_actions = get_action_details(node);
 
   for (const auto & detail : bt_actions) {
-    std::cout << detail.regex << " " << *detail.type << " " << detail.duration << "\n";
+    std::cout << detail.regex << " " << detail.type << " " << detail.duration << "\n";
   }
   return 0;
 

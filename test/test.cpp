@@ -21,7 +21,7 @@ struct TempFile
     tmpstream <<
       "/**:\n"
       "  ros__parameters:\n"
-      "    bt_actions: ['undock', 'dock', 'reset', 'nav', 'default']\n"
+      "    bt_actions: ['undock', 'dock', 'reset', 'nav', 'default', 'except']\n"
       "    bt_action_details:\n"
       "      dock:\n"
       "        regex: 'dock.xml$'\n"
@@ -37,6 +37,9 @@ struct TempFile
       "        duration: 0.1\n"
       "      nav:\n"
       "        regex: 'nav.xml'\n"
+      "        type: navigate\n"
+      "      except:\n"
+      "        regex: '*nav.xml'\n"
       "        type: navigate\n"
       "      default:\n"
       "        regex: ''\n"
@@ -64,10 +67,15 @@ TEST(Utils, get_action_details)
   const auto node = std::make_shared<rclcpp::Node>("test", no);
   const auto bt_actions = get_action_details(node);
 
-  EXPECT_EQ(*get_action(bt_actions, "blahdock.xml").type, "pick");
-  EXPECT_EQ(*get_action(bt_actions, "blahundock.xml").type, "drop");
-  EXPECT_EQ(*get_action(bt_actions, "blahreset.xml").type, "reset");
-  EXPECT_EQ(*get_action(bt_actions, "blahnav.xml").type, "navigate");
-  EXPECT_EQ(*get_action(bt_actions, "nomatch.xml").type, "beepboop");
+  EXPECT_EQ(get_action(bt_actions, "blahdock.xml").type, "pick");
+  EXPECT_EQ(get_action(bt_actions, "blahundock.xml").type, "drop");
+  EXPECT_EQ(get_action(bt_actions, "blahreset.xml").type, "reset");
+  EXPECT_EQ(get_action(bt_actions, "blahnav.xml").type, "navigate");
+  EXPECT_EQ(get_action(bt_actions, "nomatch.xml").type, "beepboop");
+
+  // "except" is not found because it threw an exception when creating
+  for (const auto & detail : bt_actions) {
+    EXPECT_NE(detail.name, "except");
+  }
   rclcpp::shutdown();
 }
