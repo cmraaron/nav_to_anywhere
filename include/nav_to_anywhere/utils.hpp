@@ -12,6 +12,7 @@ struct ActionDetail
   const std::string regex;
   const std::vector<std::string>::iterator type;
   const double duration;
+  std::regex _regex;
 };
 
 std::vector<ActionDetail> get_action_details(const rclcpp::Node::SharedPtr & node)
@@ -32,10 +33,12 @@ std::vector<ActionDetail> get_action_details(const rclcpp::Node::SharedPtr & nod
       continue;
     }
 
+    const auto regex = node->declare_parameter<std::string>(build_path("regex"), "");
     const ActionDetail ad{
-      node->declare_parameter<std::string>(build_path("regex"), ""),
+      regex,
       parsed_action,
-      node->declare_parameter<double>(build_path("duration"), 0.0)
+      node->declare_parameter<double>(build_path("duration"), 0.0),
+      std::regex(regex),
     };
     bt_actions.push_back(ad);
   }
@@ -45,8 +48,7 @@ std::vector<ActionDetail> get_action_details(const rclcpp::Node::SharedPtr & nod
 ActionDetail get_action(const std::vector<ActionDetail> & bt_actions, const std::string & bt_file)
 {
   for (const auto & ad : bt_actions) {
-    std::regex regex(ad.regex);
-    if (std::regex_search(bt_file, regex)) {
+    if (std::regex_search(bt_file, ad._regex)) {
       return ad;
     }
   }
