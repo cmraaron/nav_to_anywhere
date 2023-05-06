@@ -33,7 +33,7 @@ struct TempFile
       "        duration: 4.0\n"
       "      reset:\n"
       "        regex: 'reset.xml'\n"
-      "        type: reset\n"
+      "        type: drop\n"
       "        duration: 0.1\n"
       "      nav:\n"
       "        regex: 'nav.xml'\n"
@@ -69,7 +69,7 @@ TEST(Utils, get_action_details)
 
   EXPECT_EQ(get_action(bt_actions, "blahdock.xml").type, "pick");
   EXPECT_EQ(get_action(bt_actions, "blahundock.xml").type, "drop");
-  EXPECT_EQ(get_action(bt_actions, "blahreset.xml").type, "reset");
+  EXPECT_EQ(get_action(bt_actions, "blahreset.xml").type, "drop");
   EXPECT_EQ(get_action(bt_actions, "blahnav.xml").type, "navigate");
   EXPECT_EQ(get_action(bt_actions, "nomatch.xml").type, "beepboop");
 

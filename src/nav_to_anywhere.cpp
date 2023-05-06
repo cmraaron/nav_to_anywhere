@@ -32,11 +32,7 @@ int main(int argc, char * argv[])
 
   const auto node = std::make_shared<rclcpp::Node>("nav_to_anywhere");
 
-  const std::vector<ActionDetail> bt_actions{
-    {"dock", "dock\\.", "pick", 4.0, std::regex("dock\\.")},
-    {"undock", "undock\\.", "drop", 4.0, std::regex("undock\\.")},
-    {"reset", "-reset\\.", "reset", 4.0, std::regex("-reset\\.")},
-  };
+  const auto bt_actions = get_action_details(node);
   for (const auto & detail : bt_actions) {
     std::cout << detail.regex << " " << detail.type << " " << detail.duration << "\n";
   }
@@ -84,20 +80,23 @@ int main(int argc, char * argv[])
       const auto current_action = get_action(
         bt_actions,
         current_goal_handle->get_goal()->behavior_tree);
-      if (current_action.type == "pick" || current_action.type == "drop") {
+
+      if (current_action.type == ACTION_PICK || current_action.type == ACTION_DROP) {
         const auto elapsed_time = node->get_clock()->now() - nav_start_time;
         if (elapsed_time.seconds() > current_action.duration) {
-          footprint = current_action.type == "pick" ?
+          footprint = current_action.type == ACTION_PICK ?
             footprint_loaded :
             footprint_unloaded;
           return true;
         }
         return false;
       }
-      if (current_action.type == "reset") {
-        footprint = footprint_unloaded;
+
+      if (current_action.type != ACTION_NAV) {
+        RCLCPP_INFO(node->get_logger(), "Beep boop - doing robot stuff");
         return true;
       }
+
       const auto pos_target = nav_2d_utils::poseToPose2D(
         current_goal_handle->get_goal()->pose.pose);
       const auto dy = pos_target.y - pos_active.y;
