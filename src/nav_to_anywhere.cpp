@@ -154,12 +154,14 @@ int main(int argc, char * argv[])
 
     [&](const rclcpp_action::GoalUUID & uuid, std::shared_ptr<const NavigateToPose::Goal> goal) {
       const auto pose2d = nav_2d_utils::poseToPose2D(goal->pose.pose);
+      const auto action = get_action(bt_actions, goal->behavior_tree);
       RCLCPP_INFO_STREAM(
         node->get_logger(),
         "Received goal request" <<
           "\n  bt: " << goal->behavior_tree <<
           "\n  map: " << goal->pose.header.frame_id <<
           "\n  pose: {x: " << pose2d.x << ", y: " << pose2d.y << ", theta: " << pose2d.theta << "}"
+          "\n  action: " << action.name
       );
       (void)uuid;
       return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
