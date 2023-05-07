@@ -16,11 +16,8 @@ jobs:
       matrix:
         include:
           - ros_distribution: "foxy"
-            os: "ubuntu-20.04"
           - ros_distribution: "galactic"
-            os: "ubuntu-20.04"
           - ros_distribution: "humble"
-            os: "ubuntu-22.04"
     runs-on: ubuntu-latest
     container:
       image: "osrf/ros:${{ matrix.ros_distribution }}-desktop"
