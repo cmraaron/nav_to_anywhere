@@ -69,8 +69,9 @@ int main(int argc, char * argv[])
   const auto interval = 0.2;  // seconds
   const auto velocity = 1;    // m/s
 
+
+  /* broadcast map -> base_footprint tf */
   const auto broadcast_tf = [&]() {
-      /* broadcast map -> base_footprint tf */
       geometry_msgs::msg::TransformStamped transform;
       transform.header.frame_id = "map";
       transform.child_frame_id = "base_footprint";
@@ -81,6 +82,8 @@ int main(int argc, char * argv[])
       tf_broadcaster.sendTransform(transform);
     };
 
+
+  /* increment mission progress */
   const auto update_current_pos = [&]() {
       const auto current_action = get_action(
         bt_actions,
@@ -127,6 +130,8 @@ int main(int argc, char * argv[])
       return false;
     };
 
+
+  /* periodic timer for incrementing progress */
   const auto tick = node->create_wall_timer(
     std::chrono::milliseconds(static_cast<int>(interval * 1000)), [&]() {
       /* if we have an active mission */
@@ -144,14 +149,20 @@ int main(int argc, char * argv[])
           current_goal_handle.reset();
         }
       }
+      /* broadcast base_footprint in map frame */
       broadcast_tf();
+
+      /* publish local footprint */
       local_footprint_pub->publish(transformFootprint(pos_active, footprint));
     });
 
+
+  /* offer NavigateToPose service */
   const auto nav_to_pose_action_service = rclcpp_action::create_server<NavigateToPose>(
     node,
     "navigate_to_pose",
 
+    /* handle_goal */
     [&](const rclcpp_action::GoalUUID & uuid, std::shared_ptr<const NavigateToPose::Goal> goal) {
       const auto pose2d = nav_2d_utils::poseToPose2D(goal->pose.pose);
       const auto action = get_action(bt_actions, goal->behavior_tree);
@@ -167,12 +178,14 @@ int main(int argc, char * argv[])
       return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
     },
 
+    /* handle_cancel */
     [&](const std::shared_ptr<GoalHandleNavigateToPose> goal_handle) {
       RCLCPP_INFO(node->get_logger(), "Received request to cancel goal");
       (void)goal_handle;
       return rclcpp_action::CancelResponse::ACCEPT;
     },
 
+    /* handle_accepted */
     [&](const std::shared_ptr<GoalHandleNavigateToPose> goal_handle) {
       if (current_goal_handle) {
         current_goal_handle->abort(std::make_unique<NavigateToPose::Result>());
