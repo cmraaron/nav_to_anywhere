@@ -33,8 +33,13 @@ int main(int argc, char * argv[])
   const auto node = std::make_shared<rclcpp::Node>("nav_to_anywhere");
 
   const auto bt_actions = get_action_details(node);
+  RCLCPP_INFO(node->get_logger(), "Action config:");
   for (const auto & detail : bt_actions) {
-    std::cout << detail.regex << " " << detail.type << " " << detail.duration << "\n";
+    RCLCPP_INFO_STREAM(
+      node->get_logger(),
+      "  name: " << detail.name << ", regex: '" << detail.regex <<
+        "', type: " << detail.type << ", duration: " << detail.duration
+    );
   }
 
   tf2_ros::TransformBroadcaster tf_broadcaster(*node);
