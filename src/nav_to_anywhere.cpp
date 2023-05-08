@@ -11,6 +11,7 @@
 #include "geometry_msgs/msg/polygon_stamped.hpp"
 #include "tf2_ros/transform_broadcaster.h"
 #include "nav2_costmap_2d/footprint.hpp"
+#include "nav_to_anywhere/utils.hpp"
 
 geometry_msgs::msg::PolygonStamped transformFootprint(
   const geometry_msgs::msg::Pose2D & pose,
@@ -30,6 +31,16 @@ int main(int argc, char * argv[])
   rclcpp::init(argc, argv);
 
   const auto node = std::make_shared<rclcpp::Node>("nav_to_anywhere");
+
+  const auto bt_actions = get_action_details(node);
+  RCLCPP_INFO(node->get_logger(), "Action config:");
+  for (const auto & detail : bt_actions) {
+    RCLCPP_INFO_STREAM(
+      node->get_logger(),
+      "  name: " << detail.name << ", regex: '" << detail.regex <<
+        "', type: " << detail.type << ", duration: " << detail.duration
+    );
+  }
 
   tf2_ros::TransformBroadcaster tf_broadcaster(*node);
   const auto local_footprint_pub = node->create_publisher<geometry_msgs::msg::PolygonStamped>(
@@ -58,8 +69,9 @@ int main(int argc, char * argv[])
   const auto interval = 0.2;  // seconds
   const auto velocity = 1;    // m/s
 
+
+  /* broadcast map -> base_footprint tf */
   const auto broadcast_tf = [&]() {
-      /* broadcast map -> base_footprint tf */
       geometry_msgs::msg::TransformStamped transform;
       transform.header.frame_id = "map";
       transform.child_frame_id = "base_footprint";
@@ -70,22 +82,29 @@ int main(int argc, char * argv[])
       tf_broadcaster.sendTransform(transform);
     };
 
+
+  /* increment mission progress */
   const auto update_current_pos = [&]() {
-      if (current_goal_handle->get_goal()->behavior_tree.find("dock.") != std::string::npos) {
+      const auto current_action = get_action(
+        bt_actions,
+        current_goal_handle->get_goal()->behavior_tree);
+
+      if (current_action.type == ACTION_PICK || current_action.type == ACTION_DROP) {
         const auto elapsed_time = node->get_clock()->now() - nav_start_time;
-        if (elapsed_time.seconds() > 4) {
-          footprint =
-            current_goal_handle->get_goal()->behavior_tree.find("undock.") != std::string::npos ?
-            footprint_unloaded :
-            footprint_loaded;
+        if (elapsed_time.seconds() > current_action.duration) {
+          footprint = current_action.type == ACTION_PICK ?
+            footprint_loaded :
+            footprint_unloaded;
           return true;
         }
         return false;
       }
-      if (current_goal_handle->get_goal()->behavior_tree.find("-reset.") != std::string::npos) {
-        footprint = footprint_unloaded;
+
+      if (current_action.type != ACTION_NAV) {
+        RCLCPP_INFO(node->get_logger(), "Beep boop - doing robot stuff");
         return true;
       }
+
       const auto pos_target = nav_2d_utils::poseToPose2D(
         current_goal_handle->get_goal()->pose.pose);
       const auto dy = pos_target.y - pos_active.y;
@@ -111,6 +130,8 @@ int main(int argc, char * argv[])
       return false;
     };
 
+
+  /* periodic timer for incrementing progress */
   const auto tick = node->create_wall_timer(
     std::chrono::milliseconds(static_cast<int>(interval * 1000)), [&]() {
       /* if we have an active mission */
@@ -128,33 +149,43 @@ int main(int argc, char * argv[])
           current_goal_handle.reset();
         }
       }
+      /* broadcast base_footprint in map frame */
       broadcast_tf();
+
+      /* publish local footprint */
       local_footprint_pub->publish(transformFootprint(pos_active, footprint));
     });
 
+
+  /* offer NavigateToPose service */
   const auto nav_to_pose_action_service = rclcpp_action::create_server<NavigateToPose>(
     node,
     "navigate_to_pose",
 
+    /* handle_goal */
     [&](const rclcpp_action::GoalUUID & uuid, std::shared_ptr<const NavigateToPose::Goal> goal) {
       const auto pose2d = nav_2d_utils::poseToPose2D(goal->pose.pose);
+      const auto action = get_action(bt_actions, goal->behavior_tree);
       RCLCPP_INFO_STREAM(
         node->get_logger(),
         "Received goal request" <<
           "\n  bt: " << goal->behavior_tree <<
           "\n  map: " << goal->pose.header.frame_id <<
           "\n  pose: {x: " << pose2d.x << ", y: " << pose2d.y << ", theta: " << pose2d.theta << "}"
+          "\n  action: " << action.name
       );
       (void)uuid;
       return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
     },
 
+    /* handle_cancel */
     [&](const std::shared_ptr<GoalHandleNavigateToPose> goal_handle) {
       RCLCPP_INFO(node->get_logger(), "Received request to cancel goal");
       (void)goal_handle;
       return rclcpp_action::CancelResponse::ACCEPT;
     },
 
+    /* handle_accepted */
     [&](const std::shared_ptr<GoalHandleNavigateToPose> goal_handle) {
       if (current_goal_handle) {
         current_goal_handle->abort(std::make_unique<NavigateToPose::Result>());
