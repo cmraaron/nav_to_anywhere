@@ -21,6 +21,8 @@ jobs:
             image: "desktop"
           - ros_distribution: "humble"
             image: "simulation"
+          - ros_distribution: "rolling"
+            image: "simulation"
     runs-on: ubuntu-latest
     container:
       image: "osrf/ros:${{ matrix.ros_distribution }}-${{ matrix.image }}"
