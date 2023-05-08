@@ -24,7 +24,7 @@ ament_target_dependencies(nav_to_anywhere rclcpp rclcpp_action nav2_msgs nav_2d_
 target_include_directories(nav_to_anywhere PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
-target_compile_features(nav_to_anywhere PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
+target_compile_features(nav_to_anywhere PUBLIC c_std_99 cxx_std_20)  # Require C99 and C++20
 
 install(TARGETS nav_to_anywhere
   DESTINATION lib/${PROJECT_NAME})

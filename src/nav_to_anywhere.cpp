@@ -13,6 +13,36 @@
 #include "nav2_costmap_2d/footprint.hpp"
 #include "nav_to_anywhere/utils.hpp"
 
+using NavigateToPose = nav2_msgs::action::NavigateToPose;
+using GoalHandleNavigateToPose = rclcpp_action::ServerGoalHandle<NavigateToPose>;
+
+struct Params
+{
+  std::string topic_footprint;
+  std::string footprint_loaded;
+  std::string footprint_unloaded;
+};
+
+struct Config
+{
+  const std::vector<geometry_msgs::msg::Point> footprint_loaded;
+  const std::vector<geometry_msgs::msg::Point> footprint_unloaded;
+  const float interval = 0.2;  // seconds
+};
+
+struct Agent
+{
+  std::vector<geometry_msgs::msg::Point> footprint;
+  geometry_msgs::msg::Pose2D pos_active{};
+  const float velocity = 1;    // m/s
+  std::shared_ptr<GoalHandleNavigateToPose> current_goal_handle{};
+  rclcpp::Time nav_start_time;
+  std::shared_ptr<const NavigateToPose::Goal> get_goal() const
+  {
+    return this->current_goal_handle->get_goal();
+  }
+};
+
 geometry_msgs::msg::PolygonStamped transformFootprint(
   const geometry_msgs::msg::Pose2D & pose,
   const std::vector<geometry_msgs::msg::Point> & footprint)
@@ -20,6 +50,74 @@ geometry_msgs::msg::PolygonStamped transformFootprint(
   geometry_msgs::msg::PolygonStamped oriented_footprint;
   nav2_costmap_2d::transformFootprint(pose.x, pose.y, pose.theta, footprint, oriented_footprint);
   return oriented_footprint;
+}
+
+std::vector<geometry_msgs::msg::Point> makeFootprintFromString(const std::string & fp_string)
+{
+  std::vector<geometry_msgs::msg::Point> fp;
+  return nav2_costmap_2d::makeFootprintFromString(fp_string, fp) ?
+         fp : nav2_costmap_2d::makeFootprintFromRadius(0.3);
+}
+
+/* map -> base_footprint tf */
+geometry_msgs::msg::TransformStamped
+get_transform(const geometry_msgs::msg::Pose2D & pose, const rclcpp::Time & stamp)
+{
+  geometry_msgs::msg::TransformStamped transform;
+  transform.header.frame_id = "map";
+  transform.child_frame_id = "base_footprint";
+  transform.transform.translation.x = pose.x;
+  transform.transform.translation.y = pose.y;
+  transform.transform.rotation = nav_2d_utils::pose2DToPose(pose).orientation;
+  transform.header.stamp = stamp;
+  return transform;
+}
+
+/* increment mission progress */
+bool update_current_pos(
+  Agent & agent, const Config & config, const rclcpp::Time & stamp,
+  const std::vector<ActionDetail> & bt_actions)
+{
+  const auto current_action = get_action(
+    bt_actions,
+    agent.get_goal()->behavior_tree);
+
+  if (current_action.type == ACTION_PICK || current_action.type == ACTION_DROP) {
+    const auto elapsed_time = stamp - agent.nav_start_time;
+    if (elapsed_time.seconds() > current_action.duration) {
+      agent.footprint = current_action.type == ACTION_PICK ?
+        config.footprint_loaded :
+        config.footprint_unloaded;
+      return true;
+    }
+    return false;
+  }
+
+  if (current_action.type != ACTION_NAV) {
+    return true;
+  }
+  const auto pos_target = nav_2d_utils::poseToPose2D(agent.get_goal()->pose.pose);
+  const auto dy = pos_target.y - agent.pos_active.y;
+  const auto dx = pos_target.x - agent.pos_active.x;
+  const auto theta = std::atan2(dy, dx);
+
+  const auto vx = std::cos(theta) * agent.velocity;
+  const auto vy = std::sin(theta) * agent.velocity;
+  const auto idx = vx * config.interval;
+  const auto idy = vy * config.interval;
+
+  /* if we are within one step of our goal */
+  if (dy * dy + dx * dx < idy * idy + idx * idx) {
+    agent.pos_active.x = pos_target.x;
+    agent.pos_active.y = pos_target.y;
+    agent.pos_active.theta = pos_target.theta;
+    return true;
+  } else {
+    agent.pos_active.x += idx;
+    agent.pos_active.y += idy;
+    agent.pos_active.theta = theta;
+  }
+  return false;
 }
 
 int main(int argc, char * argv[])
@@ -42,118 +140,70 @@ int main(int argc, char * argv[])
     );
   }
 
+  const Params params {
+    .topic_footprint =
+      node->declare_parameter<std::string>("topic_footprint", "local_costmap/published_footprint"),
+    .footprint_loaded =
+      node->declare_parameter<std::string>("footprint_loaded", footprint_default_loaded),
+    .footprint_unloaded =
+      node->declare_parameter<std::string>("footprint_unloaded", footprint_default_unloaded),
+  };
+
+  Config config {
+    .footprint_loaded = makeFootprintFromString(params.footprint_loaded),
+    .footprint_unloaded = makeFootprintFromString(params.footprint_unloaded),
+  };
+
+  Agent agent {
+    .footprint = config.footprint_unloaded,
+    .nav_start_time = node->get_clock()->now(),
+  };
+
+  RCLCPP_INFO_STREAM(
+    node->get_logger(), "nav_to_anywhere config:" <<
+      "\n  Params:               " <<
+      "\n    topic_footprint:    " << params.topic_footprint <<
+      "\n    footprint_loaded:   " << params.footprint_loaded <<
+      "\n    footprint_unloaded: " << params.footprint_unloaded <<
+      "\n  Config:               " <<
+      "\n    fp loaded points:   " << config.footprint_loaded.size() <<
+      "\n    fp unloaded points: " << config.footprint_unloaded.size() <<
+      "\n    interval (seconds): " << config.interval
+  );
   tf2_ros::TransformBroadcaster tf_broadcaster(*node);
   const auto local_footprint_pub = node->create_publisher<geometry_msgs::msg::PolygonStamped>(
-    node->declare_parameter<std::string>("topic_footprint", "local_costmap/published_footprint"),
+    params.topic_footprint,
     rclcpp::SystemDefaultsQoS());
-
-  std::vector<geometry_msgs::msg::Point> footprint;
-  const auto footprint_loaded = nav2_costmap_2d::makeFootprintFromString(
-    node->declare_parameter<std::string>("footprint_loaded", footprint_default_loaded),
-    footprint
-    ) ? footprint : nav2_costmap_2d::makeFootprintFromRadius(0.3);
-
-  footprint.clear();
-  const auto footprint_unloaded = nav2_costmap_2d::makeFootprintFromString(
-    node->declare_parameter<std::string>("footprint_unloaded", footprint_default_unloaded),
-    footprint
-    ) ? footprint : nav2_costmap_2d::makeFootprintFromRadius(0.3);
-
-  using NavigateToPose = nav2_msgs::action::NavigateToPose;
-  using GoalHandleNavigateToPose = rclcpp_action::ServerGoalHandle<NavigateToPose>;
-
-  geometry_msgs::msg::Pose2D pos_active;
-  std::shared_ptr<GoalHandleNavigateToPose> current_goal_handle;
-  auto nav_start_time = node->get_clock()->now();
-
-  const auto interval = 0.2;  // seconds
-  const auto velocity = 1;    // m/s
-
-
-  /* broadcast map -> base_footprint tf */
-  const auto broadcast_tf = [&]() {
-      geometry_msgs::msg::TransformStamped transform;
-      transform.header.frame_id = "map";
-      transform.child_frame_id = "base_footprint";
-      transform.transform.translation.x = pos_active.x;
-      transform.transform.translation.y = pos_active.y;
-      transform.transform.rotation = nav_2d_utils::pose2DToPose(pos_active).orientation;
-      transform.header.stamp = node->get_clock()->now();
-      tf_broadcaster.sendTransform(transform);
-    };
-
-
-  /* increment mission progress */
-  const auto update_current_pos = [&]() {
-      const auto current_action = get_action(
-        bt_actions,
-        current_goal_handle->get_goal()->behavior_tree);
-
-      if (current_action.type == ACTION_PICK || current_action.type == ACTION_DROP) {
-        const auto elapsed_time = node->get_clock()->now() - nav_start_time;
-        if (elapsed_time.seconds() > current_action.duration) {
-          footprint = current_action.type == ACTION_PICK ?
-            footprint_loaded :
-            footprint_unloaded;
-          return true;
-        }
-        return false;
-      }
-
-      if (current_action.type != ACTION_NAV) {
-        RCLCPP_INFO(node->get_logger(), "Beep boop - doing robot stuff");
-        return true;
-      }
-
-      const auto pos_target = nav_2d_utils::poseToPose2D(
-        current_goal_handle->get_goal()->pose.pose);
-      const auto dy = pos_target.y - pos_active.y;
-      const auto dx = pos_target.x - pos_active.x;
-      const auto theta = std::atan2(dy, dx);
-
-      const auto vx = std::cos(theta) * velocity;
-      const auto vy = std::sin(theta) * velocity;
-      const auto idx = vx * interval;
-      const auto idy = vy * interval;
-
-      /* if we are within one step of our goal */
-      if (dy * dy + dx * dx < idy * idy + idx * idx) {
-        pos_active.x = pos_target.x;
-        pos_active.y = pos_target.y;
-        pos_active.theta = pos_target.theta;
-        return true;
-      } else {
-        pos_active.x += idx;
-        pos_active.y += idy;
-        pos_active.theta = theta;
-      }
-      return false;
-    };
 
 
   /* periodic timer for incrementing progress */
   const auto tick = node->create_wall_timer(
-    std::chrono::milliseconds(static_cast<int>(interval * 1000)), [&]() {
+    std::chrono::milliseconds(static_cast<int>(config.interval * 1000)), [&]() {
       /* if we have an active mission */
-      if (current_goal_handle) {
-        const auto goal_reached = update_current_pos();
+      if (agent.current_goal_handle) {
+        const auto goal_reached = update_current_pos(
+          agent, config, node->get_clock()->now(), bt_actions);
 
         auto feedback = std::make_unique<NavigateToPose::Feedback>();
         feedback->number_of_recoveries = 0;
-        feedback->current_pose.pose = nav_2d_utils::pose2DToPose(pos_active);
-        feedback->navigation_time = node->get_clock()->now() - nav_start_time;
-        current_goal_handle->publish_feedback(std::move(feedback));
+        feedback->current_pose.pose = nav_2d_utils::pose2DToPose(agent.pos_active);
+        feedback->navigation_time = node->get_clock()->now() - agent.nav_start_time;
+        agent.current_goal_handle->publish_feedback(std::move(feedback));
 
         if (goal_reached) {
-          current_goal_handle->succeed(std::make_unique<NavigateToPose::Result>());
-          current_goal_handle.reset();
+          agent.current_goal_handle->succeed(std::make_unique<NavigateToPose::Result>());
+          agent.current_goal_handle.reset();
+        } else if (agent.current_goal_handle->is_canceling()) {
+          auto result = std::make_shared<NavigateToPose::Result>();
+          agent.current_goal_handle->canceled(result);
+          agent.current_goal_handle.reset();
         }
       }
       /* broadcast base_footprint in map frame */
-      broadcast_tf();
+      tf_broadcaster.sendTransform(get_transform(agent.pos_active, node->get_clock()->now()));
 
       /* publish local footprint */
-      local_footprint_pub->publish(transformFootprint(pos_active, footprint));
+      local_footprint_pub->publish(transformFootprint(agent.pos_active, agent.footprint));
     });
 
 
@@ -187,12 +237,12 @@ int main(int argc, char * argv[])
 
     /* handle_accepted */
     [&](const std::shared_ptr<GoalHandleNavigateToPose> goal_handle) {
-      if (current_goal_handle) {
-        current_goal_handle->abort(std::make_unique<NavigateToPose::Result>());
+      if (agent.current_goal_handle) {
+        agent.current_goal_handle->abort(std::make_unique<NavigateToPose::Result>());
       } else {
-        nav_start_time = node->get_clock()->now();
+        agent.nav_start_time = node->get_clock()->now();
       }
-      current_goal_handle = goal_handle;
+      agent.current_goal_handle = goal_handle;
     }
   );
 
