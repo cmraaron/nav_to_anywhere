@@ -16,14 +16,16 @@ jobs:
       matrix:
         include:
           - ros_distribution: "foxy"
-            os: "ubuntu-20.04"
+            image: "desktop"
           - ros_distribution: "galactic"
-            os: "ubuntu-20.04"
+            image: "desktop"
           - ros_distribution: "humble"
-            os: "ubuntu-22.04"
+            image: "simulation"
+          - ros_distribution: "rolling"
+            image: "simulation"
     runs-on: ubuntu-latest
     container:
-      image: "osrf/ros:${{ matrix.ros_distribution }}-desktop"
+      image: "osrf/ros:${{ matrix.ros_distribution }}-${{ matrix.image }}"
     steps:
       - name: Checkout this repository
         uses: actions/checkout@v3
@@ -32,6 +34,7 @@ jobs:
       - uses : ros-tooling/action-ros-ci@master
         with:
           package-name: nav_to_anywhere
+          vcs-repo-file-url: dependencies.${{ matrix.ros_distribution }}.repos
           target-ros2-distro: ${{ matrix.ros_distribution }}
           colcon-defaults: |
             {

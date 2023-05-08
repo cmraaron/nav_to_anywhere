@@ -2,6 +2,10 @@
 
 Stupid robot simulated driven through `/navigate_to_pose`
 
+[![Build & Test](https://github.com/cmraaron/nav_to_anywhere/actions/workflows/ci.yml/badge.svg)](https://github.com/cmraaron/nav_to_anywhere/actions/workflows/ci.yml)
+
+[![codecov](https://codecov.io/github/cmraaron/nav_to_anywhere/branch/master/graph/badge.svg?token=1BPYNCNWPO)](https://codecov.io/github/cmraaron/nav_to_anywhere)
+
 ## Linting and style checking
 * `ament_cpplint`
 * `ament_uncrustify`
