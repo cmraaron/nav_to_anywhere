@@ -16,11 +16,14 @@ jobs:
       matrix:
         include:
           - ros_distribution: "foxy"
+            image: "desktop"
           - ros_distribution: "galactic"
+            image: "desktop"
           - ros_distribution: "humble"
+            image: "simulation"
     runs-on: ubuntu-latest
     container:
-      image: "osrf/ros:${{ matrix.ros_distribution }}-desktop"
+      image: "osrf/ros:${{ matrix.ros_distribution }}-${{ matrix.image }}"
     steps:
       - name: Checkout this repository
         uses: actions/checkout@v3
