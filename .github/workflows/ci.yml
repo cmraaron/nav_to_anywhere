@@ -35,7 +35,9 @@ jobs:
         uses: actions/cache@v3
         with:
           key: ${{ matrix.ros_distribution }}
-          path: ros_ws/build
+          path:  |
+            ros_ws/build
+            ros_ws/install
       - uses : ros-tooling/action-ros-ci@master
         with:
           package-name: nav_to_anywhere
