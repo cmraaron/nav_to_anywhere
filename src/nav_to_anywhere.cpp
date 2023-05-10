@@ -130,16 +130,6 @@ int main(int argc, char * argv[])
 
   const auto node = std::make_shared<rclcpp::Node>("nav_to_anywhere");
 
-  const auto bt_actions = get_action_details(node);
-  RCLCPP_INFO(node->get_logger(), "Action config:");
-  for (const auto & detail : bt_actions) {
-    RCLCPP_INFO_STREAM(
-      node->get_logger(),
-      "  name: " << detail.name << ", regex: '" << detail.regex <<
-        "', type: " << detail.type << ", duration: " << detail.duration
-    );
-  }
-
   const Params params {
     .topic_footprint =
       node->declare_parameter<std::string>("topic_footprint", "local_costmap/published_footprint"),
@@ -159,6 +149,16 @@ int main(int argc, char * argv[])
     .nav_start_time = node->get_clock()->now(),
   };
 
+  const auto bt_actions = get_action_details(node);
+  std::stringstream ss;
+  for (const auto & detail : bt_actions) {
+    ss <<
+      "\n    Name:               " << detail.name <<
+      "\n      Regex:            '" << detail.regex << "'" <<
+      "\n      Type:             " << detail.type <<
+      "\n      Duration:         " << detail.duration;
+  }
+
   RCLCPP_INFO_STREAM(
     node->get_logger(), "nav_to_anywhere config:" <<
       "\n  Params:               " <<
@@ -168,7 +168,8 @@ int main(int argc, char * argv[])
       "\n  Config:               " <<
       "\n    fp loaded points:   " << config.footprint_loaded.size() <<
       "\n    fp unloaded points: " << config.footprint_unloaded.size() <<
-      "\n    interval (seconds): " << config.interval
+      "\n    interval (seconds): " << config.interval <<
+      "\n  Action Config:        " << ss.str()
   );
   tf2_ros::TransformBroadcaster tf_broadcaster(*node);
   const auto local_footprint_pub = node->create_publisher<geometry_msgs::msg::PolygonStamped>(
